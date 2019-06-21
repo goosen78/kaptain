@@ -1,0 +1,98 @@
+.\"                              hey, Emacs:   -*- nroff -*-
+.\" kaptain is free software; you can redistribute it and/or modify
+.\" it under the terms of the GNU General Public License as published by
+.\" the Free Software Foundation; either version 2 of the License, or
+.\" (at your option) any later version.
+.\"
+.\" This program is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public License
+.\" along with this program; see the file COPYING.  If not, write to
+.\" the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
+.\"
+.TH KAPTAIN 1 "September 11, 2004"
+.\" Please update the above date whenever this man page is modified.
+.\"
+.\" Some roff macros, for reference:
+.\" .nh        disable hyphenation
+.\" .hy        enable hyphenation
+.\" .ad l      left justify
+.\" .ad b      justify to both left and right margins (default)
+.\" .nf        disable filling
+.\" .fi        enable filling
+.\" .br        insert line break
+.\" .sp <n>    insert n+1 empty lines
+.\" for manpage-specific macros, see man(7)
+.SH NAME
+kaptain \- Universal graphical front-end for command-line programs.
+.SH SYNOPSIS
+.B kaptain
+.RI [ options ]
+.RI file
+.SH DESCRIPTION
+\fBkaptain\fP reads the given file and builds a user-friendly dialog according to the grammar rules found in it.
+.PP
+See
+.B info kaptain
+for a detailed overview.
+.SH OPTIONS
+\fBkaptain\fP accepts the following options:
+
+.TP
+.B \-h, \-\-help
+Show summary of options.
+.TP
+.B \-V
+Run in verbose mode.
+
+.TP
+.B \-\-version
+Show version of program.
+
+.TP
+.B \-\-test
+Run in test mode. This means that commands are not executed when a
+button is pressed, only printed to the standard output.
+
+.TP
+.B \-V, \-\-verbose
+Report more information on processing the input file. Internal
+representation of the grammar and the dialog tree is also printed. Use
+this flag if Kaptain does not work as expected.
+
+.TP
+.B \-c <host:port>, \-\-client <host:port>
+Establish communication channel as a client connecting to a server on
+<host> listening on <port>.
+
+.TP
+.B \-s <port>, \-\-server <port>
+Listen to the specified <port> and accept the first connection. This
+will be used as a communication channel.
+
+.TP
+.B \-p <command>, \-\-pipe <command>
+Start the given command and communicate with it on its standard input
+and output. Don't forget to quote <command> if it contains spaces or
+other metacharacters used by the shell.
+
+.TP
+.B \-\-stdio
+Use standard input and output for communication. In this case you must
+specify an input file, thus grammar script cannot be read from the
+standard input when it is used as a communication channel.
+.TP
+.B \-\-no\-input
+Instructs Kaptain not to process messages received on the input channel.
+.TP
+.B \-\-no\-output
+If this flag is set, Kaptain will not send any messages on its output
+channel.
+
+
+
+.SH AUTHOR
+Zsolt Ter\['e]k <terek@users.sourceforge.net>.

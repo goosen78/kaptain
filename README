@@ -1,0 +1,52 @@
+Kaptain - Universal Graphical Front-end
+---------------------------------------
+
+Universal Graphical Front-end for command-line programs.
+(c) 2000-2004, 2011 Zsolt Terek <terek@users.sourceforge.net>
+
+All bug reports and suggestions are welcome.  If you have made a
+grammar that can be useful for others, prease send it to me.
+
+To compile and install, run
+  qmake kaptain.pro
+  make
+  make install
+
+
+What's new in Kaptain 0.73
+--------------------------
+
+Maintenance release; ported to compile with Qt4, rewritten to use qmake.
+
+
+What's new in Kaptain 0.72
+--------------------------
+
+Bug fixes and minor changes for Qt 3.3 and gcc-3.3 compatibility.
+Run configure as shown below to specify the qt directory explicitly.
+The script will search for `bin', `include' and `lib' subdirs below.
+  ./configure --with-qt-dir=/my/qt/dir
+
+
+What's new in Kaptain 0.71
+--------------------------
+
+Bug fixes and minor changes for Qt 3 and gcc-3.2 compatibility.
+Run configure as shown below to specify qt include directory explicitly.
+  ./configure --with-qt-dir=/usr/share/qt3
+
+
+UPGRADING FROM Kaptain 0.6
+--------------------------
+
+Since Kaptain 0.7 was completely rewritten, the syntax of grammars has
+changed. To make your scripts work with Kaptain 0.7, check the
+followings:
+- All statements should end with a semicolon (;).
+  This was only needed for rules in Kaptain 0.6, but now it is neccesary
+  for descriptions and constraints, too.
+
+- String constants and regular expressions should be closed on the
+  line they are opened. To write multi-line strings, the only way is
+  to use the <<DELIMITER ... DELIMITER form. (Perlish style multiline
+  string.)

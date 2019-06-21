@@ -1,0 +1,69 @@
+#!/usr/bin/kaptain
+
+# This makes the shell execute kaptain.
+# For kaptain, it's just another rule.
+# The advantage is, that the bang with the fixed path is not needed.
+# It would be nice, if a `:' at the beginning of a line was recognized
+# as comment character
+exec "kaptain" "$0" "$@"
+    -> @;
+
+start "List Short" -> descr ecommand buttons;
+
+descr -> @text (
+"GUI interface to the famous `ls' (list short) command."
+);
+ecommand -> "e_cmd () { echo \"cmd # $1\"; eval \"$1\"; }; e_cmd '" command "'";
+
+command -> "ls" args;
+
+args -> scope fformat forder fmoreargs;
+
+scope :horizontal :framed -> hidden recursion;
+
+hidden "Hidden files" "Show files starting with a period" -> all | almostall | !nohidden;
+all "all" "Do not hide entries starting with ." -> " -a";
+almostall "almost all" "Do not list implied . and .." -> " -A";
+nohidden "no hidden files" "Do not show hidden files" -> @;
+
+recursion "Recursion" -> recurse | !norecurse | nodirs;
+recurse  "Recurse" "Recurse into subdirectories" -> " -R";
+norecurse "Normal" "Do not recurse into subdirectories" -> @;
+nodirs "Directory entries" "List directory entries instead of contents" -> " -d";
+
+fformat :framed -> format;
+format :horizontal "Format" -> col type;
+
+col :horizontal -> single | long | ! columns;
+single "Single" "Single column output" -> " -1";
+long "Long" "Long listing format" -> " -l";
+columns "Columns" "Standard multi-column format" -> @;
+
+type "Classify" "Append indicator (one of */=@|) to entries" -> " -F"| @;
+
+forder :framed -> order;
+order :double "Order" -> time | extension | version | size | !none | filesys;
+extension "Extension" -> " --sort=extension";
+size "Size" -> " --sort=size";
+filesys "File system" -> " --sort=none";
+time "Time" -> " --sort=time";
+version "Version" -> " --sort=version";
+none "Name" -> @;
+
+fmoreargs :framed -> moreargs;
+moreargs "Arguments" -> useargs;
+
+useargs :horizontal "Use" -> !@ | " " @string="${KAPTAIN_SCRIPT_ARGS}";
+
+
+buttons:horizontal -> @echo( command )="Echo" @action(ecommand)="Do it!" @close="Dismiss" help;
+
+
+help :dialog "Help" -> @edit( "courier", 500, 400 )=`mf () { sed 's,.,,g;'; }; PAGER=cat man ls | mf` @close="OK";
+
+#help :dialog "Help" -> @edit("courier")=`ls --help` @close="OK";
+#help :dialog "Help" -> @text( `ls --help` ) @close="OK";
+
+# Local Variables:
+# mode: perl
+# End:

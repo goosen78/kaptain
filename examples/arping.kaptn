@@ -1,0 +1,37 @@
+#!/usr/bin/kaptain
+#
+# arping grammar (C) 2000 by Schneelocke, Schneelocke@gmx.net 
+# released under the GNU General Public license, version 2
+# http://www.fsf.org/copyleft/gpl.txt
+#
+# arping: http://synscan.nss.nu/programs.php
+
+start "Arping" -> command buttons;
+buttons:horizontal -> @action(command)="OK" @close="Cancel";
+
+command :framed -> "arping " opt object ;
+
+opt "Options" -> verbose raw interf maxcount finddup nullip ;
+
+verbose -> beverbose | ! @ ;
+beverbose "Be verbose" -> "-v " ;
+
+raw -> rawoutput | ! @ ;
+rawoutput "Raw output" -> "-r " ;
+
+interf -> interface | ! @ ;
+interface "Specify interface to use" -> "-i " interface2use " " ;
+interface2use -> @string="eth0" ;
+
+maxcount -> count | ! @ ;
+count "Number of packets to send" -> "-c " thecount " " ;
+thecount -> @integer=3 ; 
+
+finddup -> findduplicates | ! @ ;
+findduplicates "Find duplicates" -> "-d " ;
+
+nullip -> usenullip | ! @ ;
+usenullip "Use null ip address" -> "-0 " ;
+
+object "Host/IP/MAC to query" -> @string="00:00:00:00:00:00" ;
+

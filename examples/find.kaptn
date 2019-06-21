@@ -1,0 +1,59 @@
+#!/usr/bin/kaptain
+# kaptain grammer file for "find" command
+# based on the work of Schneelocke, Schneelocke@gmx.net 
+# version 0.1
+
+start "find" -> command buttons ;
+buttons:horizontal -> @action(command)="OK" @close="Cancel"
+@button(help)="Help .." ;
+
+command :framed  -> "find " up exec ;
+
+up :framed :horizontal  -> left timeattr fileattr  ;
+
+## 
+left :framed "options" -> path userattr  print;
+
+path "starting directory" -> startdisp ;
+startdisp "default: current directory" -> @ | @string=`pwd` ;
+
+userattr :framed "User attritute" -> none | username | userid ;
+userid "user ID" -> " -user " @string  ;
+username "username" -> " -user " @string=`echo $USER` ; 
+none "all users" -> @ ; 
+
+print "print search match on screen" -> " -print " | @ ;
+
+timeattr :framed "time attribute" -> alltime | ctime | mtime | newer ;
+
+alltime "all time" -> @ ;
+ctime "ctime in days ago" -> " -ctime +" ctimedisp " " ;
+ctimedisp -> @integer=30 ; 
+
+mtime "mtime in days ago" -> " -mtime +" mtimedisp " " ;
+mtimedisp -> @integer=30  ;
+
+newer "newer then filename" -> " -newer " newdisp " ";
+newdisp -> @string="/tmp/time.sample"  ; 
+
+fileattr :framed "file attribute" -> filetype fstype  match ;
+
+filetype :framed "filetype match" -> " -type " typedisp " " ;
+##typedisp "filetype" ->  @combo("file", "directory","link","device");
+typedisp -> file | directory | link ;
+directory "directory" -> " d" ;
+file "regular file" -> " f" ; 
+link "symbolic link" -> " l" ; 
+
+fstype "File System type " -> fsdisp | @ ;
+fsdisp "ufs file system" -> "-fstype ufs "  ; 
+
+match "filename match (N/A)" -> @ | " -name " filedisp " "; 
+filedisp "file name regexpr pattern" -> @string="\*.arc" ; 
+
+## down 
+exec "exec command following sucessful find " -> execdisp ; 
+execdisp "command"  -> @ | " | xargs " nextcmd  ; 
+nextcmd  -> @string="your command here (for example: ls -l )"  ; 
+
+help "No help current avaiable" ->  @close="cancel" ;

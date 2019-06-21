@@ -1,0 +1,157 @@
+#!/usr/bin/kaptain
+
+start "Indent" -> settings usersel buttonbar;
+settings :horizontal -> left files;
+left :framed -> choice0 options;
+files :framed -> files0;
+files0 "Files" -> onefile morefiles output;
+onefile :noeval -> thefile;
+thefile -> " " @infile;
+morefiles -> @container(onefile);
+output "Work on one input file, with output file" -> thefile " -o " @outfile | !@;
+
+choice0 "Coding style" -> kr | gnu | orig | profile |!user;
+ realchoice -> " -kr" | " -gnu" | " -orig" | @ | usersel ;
+ realchoice <- choice0;
+
+ kr "Kernighan && Ritchie coding style" -> @;
+ gnu "GNU coding style" -> @;
+ orig "Original Berkeley" -> @;
+ profile "User's profile" -> @;
+ user "User defined" -> @;
+
+options "Options" -> modify;
+ modify "Preserve access and modification time" -> "-pmt" | @;
+
+usersel:framed  -> usersel0;
+usersel0 "User defined coding style" -> usersel1;
+usersel1 :tree  :beside -> blank_lines comments statements declarations
+  indentation breaklines;
+
+buttonbar :horizontal -> @echo(command)="OK" writeprofile @close="Cancel";
+ command -> "indent " options realchoice files;
+
+writeprofile :dialog "Write profile" -> message yesno;
+message :horizontal -> @icon("stop.png") text;
+text "  Do you want to write settings to ~/.indent.pro ?" -> @;
+yesno :horizontal -> @execclose(cattoprofile)="Yes" @close="No";
+cattoprofile -> "echo '" usersel "' > $HOME/.indent.pro";
+
+#--------------------------------------------------------------
+statements -> st_brace_left st_cuddle_else st_space_after ;
+ st_brace_left        -> " -bl" ! | " -br" ;
+ st_cuddle_else       -> " -ce"   | ! " -nce";
+
+ st_space_after -> st_space_special st_space_proc_call st_space_cast st_space_sizeof  st_space_parentheses ;
+  st_space_special     -> " -ss"    | " -nss" ;
+  st_space_proc_call   -> " -pcs" ! | " -npcs" ;
+  st_space_cast        -> " -cs" !  | " -ncs" ;
+  st_space_sizeof      -> " -bs"    | ! @ ;
+  st_space_parentheses -> " -prs"   | ! " -nprs" ;
+
+declarations -> dl_blank_comma dl_braces_struct dl_proc_line ;
+ dl_blank_comma   -> " -bc"    | ! " -nbc" ;
+ dl_braces_struct -> " -brs"   | ! " -bls" ;
+ dl_proc_line     -> " -psl" ! | " -npsl" ;
+
+
+comments -> cm_format cm_format_first cm_delims_blank cm_star_comment cm_right;
+ cm_format       -> " -fca"  | ! " -nfca" ;
+ cm_format_first -> " -fc1"  | ! " -nfc1" ;
+ cm_delims_blank -> " -cdb"  | ! " -ncdb" ;
+ cm_star_comment -> " -sc"   | ! " -nsc" ;
+ cm_right -> cm_code_comment cm_decl_comment cm_prep_comment @fill;
+  cm_code_comment -> " -c"  @integer=1   | ! @ ;
+  cm_decl_comment -> " -cd" @integer=1   | ! @ ;
+  cm_prep_comment -> " -cp" @integer=1 ! | @ ;
+
+blank_lines -> bl_after_block_decl bl_after_proc_body bl_before_box_comment bl_swallow_optional ;
+ bl_after_block_decl   -> " -bad"   | ! " -nbad" ;
+ bl_after_proc_body    -> " -bap" ! | " -nbap" ;
+ bl_before_box_comment -> " -bbb"   | ! @ ;
+ bl_swallow_optional   -> " -sob"   | ! " -nsob" ;
+
+indentation -> in_cont_par in_leave_pp  st_indent in_other;
+ in_cont_par -> " -lp" ! | " -nlp" ;
+ in_leave_pp -> " -lps"  | ! @ ;
+ st_indent -> st_brace_indent st_cont_indent st_case_label_indent st_case_brace_indent st_paren_indent @fill;
+  st_brace_indent      -> " -bli" @integer=2 ! | @ ;
+  st_cont_indent       -> " -ci" @integer=2    | ! @ ;
+  st_case_label_indent -> " -cli" @integer=2   | ! @ ;
+  st_case_brace_indent -> " -cbi" @integer=0   | ! @ ;
+  st_paren_indent      -> " -pi" @integer=1 | ! @ ;
+ in_other -> in_level in_param in_brace in_tab_size dl_indent cm_line_comment_indent @fill;
+  in_level    -> " -i" @integer=2  !  | @ ;
+  in_param    -> " -ip" @integer=5 !  | " -nip" ;
+  in_brace    -> " -sin" @integer=0   | ! @;
+  in_tab_size -> " -ts" @integer=8    | ! @;
+  dl_indent        -> " -di" @integer=2 ! | @;
+  cm_line_comment_indent -> " -d" @integer=2 | ! @ ;
+
+breaklines -> bl_bool_op bl_pref_nl bl_break_length;
+ bl_break_length -> bl_line_length  cm_line_length @fill;
+  bl_line_length -> " -l" @integer=78 | ! @;
+  cm_line_length  -> " -lc" @integer=78 | ! @ ;
+ bl_bool_op     -> " -bbo" ! | " -nbbo";
+ bl_pref_nl     -> " -hnl" ! | " -nhnl";
+
+#--------------------------------------------------------------
+
+blank_lines :tree  = "Blank lines" ;
+ bl_after_block_decl = "After block declaration";
+ bl_after_proc_body  = "After procedure body" "" "" ;
+ bl_before_box_comment = "Before boxed comments" ;
+ bl_swallow_optional = "Swallow optional blank lines";
+
+comments :tree = "Comments";
+ cm_format = "Format comments" ;
+  cm_format_first = "Format first column comments" ;
+ cm_line_comment_indent :beside = "Line comment indention" ;
+ cm_delims_blank = "Comment delimiters on blank lines" ;
+ cm_right = "Comments right to ..." ;
+ cm_code_comment :beside = "... the code in column"
+  "Put comments to the right of the code in the given column." ;
+ cm_decl_comment :beside = "... the declarations in column"
+  "Put comments to the right of the declaration in the given column." ;
+ cm_prep_comment :beside = "... the preprocessor in column"
+  "Put comments to the right of the preprocessor statements in the given column." ;
+ cm_star_comment = "Put * on the left of comments";
+
+statements :tree = "Statements" ;
+ st_brace_left = "Braces after the `if', `for', etc. lines" ;
+ st_brace_indent :beside = "Indent braces" ;
+ st_cuddle_else = "Cuddle up else and preceeding `}'" ;
+ st_cont_indent :beside = "Continuation indentation of"  ;
+ st_case_label_indent :beside = "Indent case labels by" ;
+ st_case_brace_indent :beside = "Case brace indentation of" ;
+ st_paren_indent :beside = "Extra indentation per open parentheses" ;
+ st_space_after :tree = "Space after";
+ st_space_special = "Single `for', `while' lines before `;'" ;
+ st_space_proc_call = "Procedure calls" ;
+ st_space_cast = "Cast" ;
+ st_space_sizeof = "sizeof" ;
+ st_space_parentheses = "parentheses (inside)" ;
+
+declarations :tree = "Declarations" ;
+ dl_indent :beside = "Variable indentation" "Put variables in column <em>n</em>" ;
+ dl_blank_comma = "Newlines after commas" "Insert newlines after commas in declarations";
+ dl_braces_struct = "Braces on struct declaration line" ;
+ dl_proc_line = "Procname on a new line";
+
+indentation :tree = "Indentation" ;
+ in_level :beside = "Indentation level";
+ in_cont_par = "Continued lines lined up at parentheses" ;
+ in_leave_pp = "Leave space before preprocessor directives"
+               "Leave space between `#' and preprocessor directives";
+ in_param :beside = "Parameter indentation in old-style functions" ;
+ in_brace :beside = "Braces of `enum', `struct', `union'";
+ in_tab_size :beside = "Tab size" ;
+ st_indent = "Statements...";
+ in_other = "Others...";
+
+breaklines :tree = "Break long lines" ;
+ bl_break_length = "Line lengths..." ;
+  bl_line_length :beside = "Maximum non-comment line length" ;
+  cm_line_length :beside = "Maximum comment line length" ;
+ bl_bool_op = "Break before boolean operators" ;
+ bl_pref_nl = "Prefer break at newlines in the input";

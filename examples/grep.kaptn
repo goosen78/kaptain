@@ -1,0 +1,58 @@
+#!/usr/bin/kaptain
+#
+# grep utility for Kaptain
+# written by Bojan Kverh 28.9.2000
+
+start "Grep" -> window buttons;
+
+window -> alloptions word directory mask ;
+grep -> show "grep " alloptions " -e \'" word "\' " directory mask "; echo; echo";
+
+show -> upedge title author downedge banner;
+
+upedge -> "echo; echo; echo '########################################################'; ";
+downedge -> "echo '########################################################'; ";
+title -> "echo '# Grep script for Kaptain                              #';";
+author -> "echo '# Written by Bojan Kverh (bojank@amanda.fri.uni-lj.si) #'; ";
+banner -> "echo; echo Grep results:; echo  -------------; echo; echo;";
+
+word "Expression to look for:" -> @string;
+
+directory "Start searching in directory (if non-null it should end with /):" -> @directory;
+mask "Search in files:" -> @string="*";
+
+alloptions :horizontal -> options others;
+
+others -> interprete lines;
+
+interprete :framed -> radiobuttons;
+
+radiobuttons " Interprete expression as "-> basic | extended | fixed;
+basic "basic regular expression" -> "-G ";
+extended "extended regular expression" -> "-E ";
+fixed "fixed string" -> "-F ";
+
+options  -> addoptions printoptions;
+
+addoptions :framed -> fr_addoptions;
+fr_addoptions " Additional options " -> case number nonmatch;
+number "Print leading line numbers" -> "-n " | "";
+case "Ignore case" -> "-i " | ! "";
+nonmatch "Invert matching expression" -> "-v " | ! "";
+
+printoptions :framed -> print;
+print " Print only " -> printlines | printnumber | printfiles | printinvertfiles;
+printlines "whole lines containing expression" -> "";
+printnumber "number of lines containing expression" -> "-c ";
+printfiles "files containing expression" -> "-l ";
+printinvertfiles "files not containing expression" -> "-L ";
+
+
+lines :framed -> alllines;
+
+alllines " Print additional lines " -> "-B"linesbefore " -A" linesafter " ";
+
+linesbefore "Before the match:" -> @integer(0,100)=0;
+linesafter "After the match:" -> @integer(0,100)=0;
+
+buttons :horizontal -> @action(grep)="OK" @close="Cancel";

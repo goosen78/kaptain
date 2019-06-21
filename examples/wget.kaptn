@@ -1,0 +1,71 @@
+#!/usr/bin/kaptain
+
+#wget control program, only tested with GNU Wget 1.5.3
+#(C) 2001 by Oliver Kohll, oliver@gtwebmarque.com
+#released under the GNU General Public License, version 2
+#http://www.fsf.org/copyleft/gpl.txt
+#Show log... and Show files... need KDE to work.
+#Show log... will need to be changed if nohup doesn't write to wget-log
+
+start "Download website or file(s)" -> dialogue buttons;
+dialogue:tabbed -> url options recursion;
+
+url "URL and logging" -> theurl filesurl background nohuplog savetodir credits;
+theurl:beside "URL (http://... or ftp://...)" -> @string;
+filesurl -> readfilecheck infile;
+readfilecheck:beside "Read URLs from file" -> @ | " --input-file=";
+infile:beside -> @infile;
+background "Download in background" -> " -b" | @;
+nohuplog -> saveoutput nonverbose showlog;
+saveoutput "Log with nohup" -> "nohup " | @;
+showlog -> @action("kwrite wget-log") = "Show log...";
+nonverbose "Non verbose logging" -> " -nv" | @;
+savetodir:beside "Download to" -> @directory = "~/";
+credits -> @text("Kaptain graphical front end for command line programs from\nhttp://kaptain.sourceforge.net\nwget control script by Oliver Kohll\nwww.gtwebmarque.com, www.gtwebpublisher.co.uk\nwget 1.5.3 from http://www.gnu.org/software/wget/wget.html");
+
+buttons:double -> startbutton progressbutton closebutton;
+startbutton -> @action(command)="Start download";
+progressbutton -> @action(showprogress) = "Show files...";
+closebutton -> @close="Close dialogue";
+showprogress -> "konqueror " savetodir;
+
+options "Download options" -> dontoverwrite continue siteuser dontcache;
+dontoverwrite "Don't overwrite existing" -> @ | " -nc";
+continue "Continue partially downloaded file" -> @ | " -c";
+siteuser -> userneeded usersupplied passneeded passsupplied;
+userneeded "HTTP Username needed" -> @ | " --http-user=";
+usersupplied -> @string;
+passneeded "HTTP Password needed" -> @ | " --http-passwd=";
+passsupplied -> @password;
+dontcache "Disallow caching" -> " --cache=off" | @;
+
+recursion:double:framed "Recursion options" -> recursionoptions acceptreject;
+recursionoptions "Basic options" -> recurse specifydepth torelative followftp spanhosts;
+acceptreject "Accept/Reject" -> acceptext rejectext acceptdom rejectdom acceptdirs rejectdirs;
+recurse "Recurse" -> " -r" | @;
+specifydepth -> depthcheck depth;
+depthcheck:beside "Specify depth" -> " --level=" | @;
+depth:beside "Depth (0=unlimit)" -> @integer = 0;
+torelative "Convert absolute links to relative" -> @ | " --convert-links";
+acceptext -> acceptextcheck acceptextlist;
+acceptextcheck "Accept extensions (htm,html,...)" -> @ | " --accept=";
+acceptextlist -> @string;
+rejectext -> rejectextcheck rejectextlist;
+rejectextcheck "Reject extensions" -> @ | " --reject=";
+rejectextlist -> @string;
+acceptdom -> acceptdomcheck acceptdomlist;
+acceptdomcheck "Accept domains" -> @ | " --domains=";
+acceptdomlist -> @string;
+rejectdom -> rejectdomcheck rejectdomlist;
+rejectdomcheck "Reject domains" -> @ | " --exclude-domains=";
+rejectdomlist -> @string;
+acceptdirs -> acceptdircheck acceptdirlist;
+acceptdircheck "Accept directories" -> @ | " --include-directories=";
+acceptdirlist -> @string;
+rejectdirs -> rejectdircheck rejectdirlist;
+rejectdircheck "Reject directories" -> @ | " --exclude-directories=";
+rejectdirlist -> @string;
+followftp "Follow FTP links" -> @ | " --follow-ftp";
+spanhosts "Go to foreign hosts" -> @ | " --span-hosts";
+
+command -> saveoutput "wget" readfilecheck infile background nonverbose " --directory-prefix=" savetodir options recursion " " theurl;

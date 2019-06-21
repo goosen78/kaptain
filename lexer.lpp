@@ -1,0 +1,253 @@
+%{
+#include <string>
+#include <sstream>
+#include "global.h"
+#include "tools.h"
+#include "process.h"
+#include "grammar.h"
+#include "parser_yacc.h"
+
+using namespace std;
+
+string  * terminal;
+string delimiter;
+int rarrow_lineno=0, larrow_lineno=0, 
+  nonterminal_lineno=0, last_correct_lineno=0;
+char quoting, first_char;
+bool my_exception(int e);
+string safe_getenv(char *);
+
+%}
+ 
+%option noyywrap yylineno
+%x DOUBLE_QUOTES SINGLE_QUOTES BACK_QUOTES QUOTE QUOTE_START SUPER_QUOTE
+%x REG_EXP REG_EXP_START 
+%x SUBST1 SUBST2 SUBST3 SUBST_START 
+%x TRANS1 TRANS2 TRANS_START
+
+alpha    [a-zA-Z_]
+alphanum [a-zA-Z_0-9]
+Word     {alpha}{alphanum}*
+
+
+%%
+
+[ \t\n\r]+     ;
+#.*\n          ;
+#.*				;
+[+-]?[0-9]+    { parserlval.integer=atoi(yytext); return NUMBER; }
+{Word}         { nonterminal_lineno=yylineno;
+                 parserlval.pstring=new string(yytext); return NONTERMINAL; }
+:{Word}        { parserlval.pstring=new string(yytext); return MODIFIER; }
+@{Word}        { parserlval.pstring=new string(yytext); return SPECIAL; }
+"->"           { rarrow_lineno=yylineno; return RARROW; }
+"<-"           { larrow_lineno=yylineno; return LARROW; }
+
+
+\"             { terminal=new string; BEGIN(DOUBLE_QUOTES); }
+<DOUBLE_QUOTES>
+{
+    \\n        { terminal->append("\n"); }
+    \\t        { terminal->append("\t"); }
+    \\\n       ;
+    \\.        { terminal->append(yytext+1); }
+    \"         { parserlval.pstring=terminal; BEGIN(INITIAL); return TERMINAL; }
+    \n         { if (my_exception(1)) return ERROR; }
+    [^\n$\\""]+ { terminal->append(string(yytext)); }
+    \$[a-zA-Z]+ { terminal->append(safe_getenv(yytext+1)); }
+    \$\{[^}]+\} { yytext[yyleng-1]=0; char * env = getenv(yytext+2);
+                  if (env) terminal->append(env); }
+    .          { terminal->append(yytext); }
+}
+
+
+'              { terminal=new string; BEGIN(SINGLE_QUOTES); }
+<SINGLE_QUOTES>
+{
+    '          { parserlval.pstring=terminal; BEGIN(INITIAL); return TERMINAL; }
+    \n         { my_exception(1); return ERROR; }
+    [^\n'']+    { terminal->append(string(yytext)); }
+    .          { terminal->append(yytext); }
+}
+
+
+`              { terminal=new string; BEGIN(BACK_QUOTES); }
+<BACK_QUOTES>
+{
+    `          { parserlval.pstring=new string(exec_sync_stdout(*terminal)); 
+                 delete terminal;
+                 BEGIN(INITIAL); return TERMINAL; }
+    \n         { my_exception(1); return ERROR; }
+    [^\n`]+    { terminal->append(string(yytext)); }
+    .          { terminal->append(yytext); }
+}
+
+
+(q|x)/[^a-zA-Z0-9;().=:_\n\t -]  { BEGIN(QUOTE_START);
+                 first_char=yytext[0]; terminal=new string; }
+<QUOTE_START>. { quoting=yytext[0]; BEGIN(QUOTE); }
+<QUOTE>.       { 
+                 if (yytext[0]==quoting)
+                   {
+                     BEGIN(INITIAL);
+                     if (first_char=='x')
+                       parserlval.pstring=new string
+                         (exec_sync_stdout(*terminal));
+                     else
+                       parserlval.pstring=terminal;
+                     return TERMINAL;
+                   }
+                 terminal->append(yytext);
+               }
+<QUOTE>\n      { my_exception(1); return ERROR; }
+
+
+(m)/[^a-zA-Z0-9;().=:_\n\t -]  { BEGIN(REG_EXP_START);
+                first_char=yytext[0]; terminal=new string; }
+<REG_EXP_START>. { quoting=yytext[0]; BEGIN(REG_EXP); }
+<REG_EXP>.     {
+                 if (yytext[0]==quoting)
+                   {
+                     BEGIN(INITIAL);
+                     parserlval.pstring=terminal;
+                     return REGEXP;
+                   }
+                 terminal->append(yytext);
+               }
+<REG_EXP>\n    { my_exception(2); return ERROR; }
+
+
+(s)/[^a-zA-Z0-9;().=:_\n\t -]  { BEGIN(SUBST_START);
+                first_char=yytext[0]; terminal=new string; }
+<SUBST_START>. { quoting=yytext[0]; BEGIN(SUBST1); }
+<SUBST1>.      {
+                 if (yytext[0]==quoting)
+                   {
+                     BEGIN(SUBST2);
+                     parserlval.string_array[0]=terminal;
+                     terminal=new string;
+                   }
+                 else
+                   terminal->append(yytext);
+               }
+<SUBST2>.      {
+                 if (yytext[0]==quoting)
+                   {
+                     BEGIN(SUBST3);
+                     parserlval.string_array[1]=terminal;
+                   }
+                 else
+                   terminal->append(yytext);
+               }
+<SUBST1>\n     { my_exception(3); return ERROR; }
+<SUBST2>\n     { my_exception(3); return ERROR; }
+
+<SUBST3>.|\n   {
+                 terminal=new string;
+                 terminal[0]=yytext[0];
+                 parserlval.string_array[2]=terminal; 
+                 if (yytext[0]!='g') unput(yytext[0]);
+                 BEGIN(INITIAL);
+                 return SUBSTITUTION;
+                 /* 
+                 if (yytext[0]=='g') 
+                   parserlval.string_array[2]=(string *)1;
+                   // indicate `g' flag
+                 else 
+                   { parserlval.string_array[2]=0; unput(yytext[0]); }
+                BEGIN(INITIAL);
+                return SUBSTITUTION;
+                */
+              }
+
+
+(tr|y)/[^a-zA-Z0-9;().=:_\n\t -]  { BEGIN(TRANS_START);
+                first_char=yytext[0]; terminal=new string; }
+<TRANS_START>. { quoting=yytext[0]; BEGIN(TRANS1); }
+<TRANS1>.      {
+                 if (yytext[0]==quoting)
+                   {
+                     BEGIN(TRANS2);
+                     parserlval.string_array[0]=terminal;
+                     terminal=new string;
+                   }
+                 else
+                   terminal->append(yytext);
+               }
+<TRANS2>.      {
+                 if (yytext[0]==quoting)
+                   {
+                     BEGIN(INITIAL);
+                     parserlval.string_array[1]=terminal;
+                     return TRANSLITERATION;
+                   }
+                 else
+                   terminal->append(yytext);
+               }
+<TRANS1>\n     { my_exception(4); return ERROR; }
+<TRANS2>\n     { my_exception(4); return ERROR; }
+
+
+"<<".*\n       { BEGIN(SUPER_QUOTE); delimiter=string(yytext+2); 
+                 terminal=new string; }
+<SUPER_QUOTE>^.*\n { if (yytext==delimiter) 
+                      {
+                        BEGIN(INITIAL);
+								terminal->erase(terminal->size()-1,1);
+                        parserlval.pstring=terminal;
+                        return TERMINAL;
+                      }
+  	                 //if (!(terminal->empty()))
+                    //  terminal->append("\n");
+                    terminal->append(yytext);
+                  }
+<SUPER_QUOTE>\n  ;
+
+.              { return yytext[0]; }
+
+
+%%
+
+extern Grammar * yygrammar;
+
+
+bool my_exception(int e)
+{
+  ostringstream message;
+  string s;
+  bool warning=false;
+  switch (e)
+    {
+    case 1: 
+      s="String constant has reached the end of the line";
+      warning=true;
+      break;
+    case 2: 
+      s="Regular expression constant has reached the end of the line";
+      break;
+    case 3: 
+      s="Substitution constant has reached the end of the line";
+      break;
+    case 4:
+      s="Transliteration constant has reached the end of the line";
+      break;
+    default:
+      s="Unknown error";
+    }
+  message << s << " at line " << yylineno << "." << endl;
+  if (warning) MAKE_WARNING(message.str());
+  else MAKE_ERROR(message.str());
+  return !warning; // report error or not
+}
+
+
+/* returns emty string if no uch environment variable exists */
+string safe_getenv(char * s)
+{
+   string r;
+   char * env;
+   env=getenv(s); 
+   if (env) r=env;
+   return r;
+}
+

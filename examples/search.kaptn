@@ -1,0 +1,27 @@
+#!/usr/bin/kaptain
+
+#glimpse control script
+#(C) 2001 by Oliver Kohll, oliver@gtwebmarque.com
+#released under the GNU General Public License, version 2
+#http://www.fsf.org/copyleft/gpl.txt
+#glimpse is a search engine for your hard disk/network etc., much faster than find|grep :)
+#http://webglimpse.org/, you will need to install & setup glimpse in order to use this script
+#
+#Note. This script excercises a small subset of the glimpse commands, for simplicity
+#
+#WARNING------------------------------------------------------
+#This script overwrites the file ~/glimpse-searchresults.txt
+#In the v. unlikely event you use this file, change the script
+
+start:framed "Search filesystem" -> options control;
+options "Options" -> searchterm wholewords accuracy;
+control "Control" -> filetypes buttons;
+searchterm:beside "Search for" -> @string;
+wholewords:beside "Whole words only" -> " -w" | @;
+filetypes:double -> includefiletype thefiletype;
+accuracy:beside "Fuzziness of search (0 = exact match)" -> @integer = 1;
+includefiletype "Only find files of type (e.g. doc)" -> @ | " -F ";
+thefiletype -> @string;
+buttons:double -> startbutton @close = "Close";
+startbutton -> @action(command) = "Search";
+command -> "glimpse -y -i -l -" accuracy wholewords includefiletype thefiletype " " searchterm " >~/glimpse-searchresults.txt;kwrite ~/glimpse-searchresults.txt";

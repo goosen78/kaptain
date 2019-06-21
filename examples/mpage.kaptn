@@ -1,0 +1,120 @@
+#!/usr/bin/kaptain
+########################################################################
+#
+#    Kaptain grammar for mpage
+#
+#    Version 0.9 by Javier O'Hara <joh314@users.sourceforge.net>
+#
+########################################################################
+
+start "Mpage" -> mpage buttons;
+mpage :tabbed -> "mpage " paper " " margins headers misc range " " io about;
+
+########################################################################
+# Paper settings
+########################################################################
+paper "Paper" -> papersize " " scale orientation twoside;
+papersize :beside "Paper Size" -> "-b" @combo("A4","Legal","Letter") ;
+orientation :framed -> pageorientation direction;
+pageorientation :horizontal "Page Orientation" -> ! portrait | landscape;
+portrait "Portrait" -> "";
+landscape "Landscape" -> " -l";
+scale :beside "Pages per sheet" -> "-" @combo("1","2","4","8")=3 ;
+direction :horizontal "Run pages" -> ! updown | leftright ;
+updown "Up-Down" -> "" ;
+leftright "Left-Right" -> " -a";
+twoside "Two side printing" -> @ | " -t" tumble;
+tumble "Tumble on second pages" -> @ | " -T";
+
+########################################################################
+# Margins
+########################################################################
+margins :framed "Margins" -> sheetmargins " " logicalmargins " " textboxmargins;
+sheetmargins :horizontal "Sheet Margins" -> "-m" topsmargin leftsmargin rightsmargin bottomsmargin;
+topsmargin    :beside "Top"    -> @integer(-1000,1000)=20 "t";
+leftsmargin   :beside "Left"   -> @integer(-1000,1000)=20 "l";
+rightsmargin  :beside "Right"  -> @integer(-1000,1000)=20 "r";
+bottomsmargin :beside "Bottom" -> @integer(-1000,1000)=20 "b";
+logicalmargins :horizontal "Logical Page Margins" -> "-M" toplmargin leftlmargin rightlmargin bottomlmargin;
+toplmargin    :beside "Top"    -> @integer(-1000,1000)=8 "t";
+leftlmargin   :beside "Left"   -> @integer(-1000,1000)=8 "l";
+rightlmargin  :beside "Right"  -> @integer(-1000,1000)=8 "r";
+bottomlmargin :beside "Bottom" -> @integer(-1000,1000)=8 "b";
+textboxmargins :horizontal "Text Box Margins" -> "-B" toptmargin lefttmargin righttmargin bottomtmargin;
+toptmargin    :beside "Top"    -> @integer=0 "t";
+lefttmargin   :beside "Left"   -> @integer=0 "l";
+righttmargin  :beside "Right"  -> @integer=0 "r";
+bottomtmargin :beside "Bottom" -> @integer=0 "b";
+
+########################################################################
+# Misc
+########################################################################
+misc :framed "Misc" -> miscoptions;
+miscoptions "Misc" -> outlines force tabstop indent lines width fold;
+outlines "Page outlines" -> ! yesoutlines | nooutlines ;
+yesoutlines -> "" ;
+nooutlines -> " -o";
+fold "Fold lines longer than page width" -> @ | " -f";
+force "Force input to" -> @ | " -d" forced;
+forced :horizontal -> ascii | postscript;
+ascii "ASCII" -> "a";
+postscript "Postscript" -> "p";
+lines :beside "Lines to fit in a page" -> @ | " -L" @integer(0,1000);
+width :beside "Width of lines to fit in a page" -> @ | " -W" @integer(0,1000);
+indent :beside "Indent text by" -> @ | " -I" @integer(0,1000);
+tabstop :beside "Tab Stop length" -> " -s" @integer(2,1000)=8;
+
+########################################################################
+# Page range
+########################################################################
+range "Range" -> pagerange reverse leftrightmode;
+pagerange -> all | userdefined;
+all "Print all pages" -> "";
+userdefined  "User defined" -> " -j" first last interval ;
+first :beside "First" -> @integer = 1;
+last :beside "Last" -> @ | "-" @integer = 1;
+interval :beside "Interval" -> @ | "%" @integer = 1;
+reverse "Reverse pages" -> @ | " -r";
+leftrightmode "Left-to-Right mode" -> @ | " -R";
+
+
+########################################################################
+# Headers
+########################################################################
+headers "Headers" -> header physicalheader;
+header "Logical Page Header" -> @ | " -H" headercontent;
+headercontent "Content" -> @ | " -h" @string;
+physicalheader "Physical Page Header" -> @ | " -X " @string;
+
+########################################################################
+# Input/Output
+########################################################################
+io :reverse :framed "I/O" -> "-P" output " " inputfile;
+inputfile "Input File" -> @infile("*.ps");
+output "Output" -> stdout | printer ;
+stdout "Standard Output" -> "-";
+printer "Printer" -> defaultprinter | otherprinter;
+defaultprinter "Default" -> "";
+otherprinter "Other" -> @combo(`ls /dev/lp*`);
+
+########################################################################
+# About
+########################################################################
+about "About" -> @text("Kaptain grammar for mpage.\n\nVersion 0.9 by Javier O'Hara <joh314@users.sourceforge.net>\n\nThe tooltip text was taken from the original mpage manual.\n\nmpage is (c) Mark P. Hahn and Marcel Mol.") ;
+
+buttons :horizontal -> @action(mpage)="Go" @preview(mpage)="Preview command" @close="Quit";
+
+leftrightmode="" "Switch to left to right mode, starting first page on left bottom corner.\nThis might be useful for landscape postscript files.";
+outlines="" "Toggle printing of outlines around each reduced page.";
+reverse="" "Reverse printing. The last sheet is printed first. The way of arranging\nreduced pages on the sheets doesn't change.";
+twoside="" "Toggle printing on both sides of the paper. This will toggle duplex mode of the printer.\nUse this option only if your printer is capable of printing in duplex mode.";
+tumble="" "Toggle tumble of every second pages when printing in duplex mode.";
+force="" " Force input to be taken as ascii or postscript text. This way you can print your postscript\n code as text, or print postscript code that mpage does not recognise. When using postscript,\n make sure that the the postscript code contains %Page page separators or else things will\n probably look odd.";
+papersize="" " Prepare output for selected paper size. Papersize can be A4 for European A4,\n Letter for US Letter or Legal for Legal sized paper.";
+leftright="" "Toggle layout of the pages on the sheet so that successively numbered pages\n run right the sheet, as opposed to up to down.";
+updown="" " Toggle layout of the pages on the sheet so that successively numbered pages\n run down the sheet, as opposed to left to right.";
+portrait="" "Toggle printing landscape or portrait mode. Landscape pages are 55\n lines long by 132 characters wide by default. Portrait pages are\n66 lines long by 80 characters wide by default.";
+landscape="" "Toggle printing landscape or portrait mode. Landscape pages are 55\n lines long by 132 characters wide by default. Portrait pages are\n66 lines long by 80 characters wide by default.";
+header="" "Create header line for each logical page separated from page text\nby  a  horizontal  line. Unless a value is given, the header consist\nof last file changetime, filename and page number, all in bold and\nslightly larger font. This option only applies to non-postscript files.";
+physicalheader="" "Print header centered on each physical page (sheet). If no\nheader is given, the default is the current filename on the left\nand the page number on the right.";
+width="" "Adjust the page reduction parameters so that a line width characters\nlong will fit in the space of one page. This overrides the default\nzzzzzzzzvalues normally supplied.";

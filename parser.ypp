@@ -1,0 +1,357 @@
+%{
+#include <stdlib.h>
+#include <iostream>
+#include <string>
+#include <list>
+#include "grammar.h"
+using namespace std;
+int yylex();
+int yyerror(const char *);
+extern int yylineno;
+extern Grammar * yygrammar;
+extern int rarrow_lineno, larrow_lineno, 
+  nonterminal_lineno, last_correct_lineno;
+extern int glob_parse_result;
+extern list<Parameter *> * glob_param_list;
+extern Parameter * glob_init_value;
+%}
+
+%union
+{
+  int integer;
+  string * pstring;
+  Rule * prule;
+  Disjunction * pdisjunction;
+  Conjunction * pconjunction;
+  Parameter * pparameter;
+  list<Parameter *> * pparamlist;
+  string * string_array[3];
+  list<string *> * pstringlist;
+  list<Parameter *> * ptrafolist;
+}
+
+%token <integer> NUMBER
+%token <pstring> NONTERMINAL
+%token <pstring> TERMINAL
+%token <pstring> SPECIAL
+%token <pstring> MODIFIER
+%token <pstring> RARROW
+%token <pstring> LARROW
+%token <string_array> SUBSTITUTION
+%token <string_array> TRANSLITERATION
+%token <pstring> REGEXP
+%token <pstring> ERROR
+
+%type <integer> start;
+%type <integer> rules;
+%type <prule> rule;
+%type <pdisjunction> disjunction;
+%type <pconjunction> conjunction;
+%type <pparamlist> parameters;
+%type <pparameter> parameter;
+%type <string_array> textinfo;
+%type <pstringlist> modifiers;
+%type <ptrafolist> transformations;
+%type <pparameter> initvalue;
+%type <integer> description;
+%type <integer> constraint;
+
+
+%%
+
+start: 
+  rules
+  {
+    glob_parse_result=0;
+    glob_param_list=0;
+    glob_init_value=0;
+  }
+  | '(' parameters ')' initvalue
+  {
+    glob_parse_result=1;
+    glob_param_list=$2;
+    glob_init_value=$4;
+    ;
+  }
+  | '(' ')' initvalue
+  {
+    glob_parse_result=1;
+    glob_param_list=0;
+    glob_init_value=$3;
+    ;
+  }
+  | '=' parameter /* same as `initvalue' */
+  {
+    glob_parse_result=1;
+    glob_param_list=0;
+    glob_init_value=$2;
+    ;
+  }
+;
+
+rules: /* epsilon */         
+  {
+    $$=0;
+  }
+| rules rule
+  {
+    yygrammar->add_rule($2);
+    //cout << yygrammar->broker.get_string($2->get_left()).c_str() << endl;
+    $$=0;
+  }  
+| rules description
+  {
+    $$=0;
+  }  
+| rules constraint
+  {
+    $$=0;
+  }  
+;
+
+
+description: 
+  NONTERMINAL modifiers '=' textinfo ';'
+  {
+    last_correct_lineno=nonterminal_lineno;
+    yygrammar->add_description($1, $2, $4);
+
+    if ($4[0]) delete $4[0];
+    if ($4[1]) delete $4[1];
+    if ($4[2]) delete $4[2];
+    delete $1;
+  }
+;
+
+
+constraint: 
+  NONTERMINAL LARROW NONTERMINAL ';'
+  {
+    last_correct_lineno=larrow_lineno;
+    yygrammar->add_constraint($1, $3);
+    delete $1;
+    delete $3;
+  }
+;
+
+
+rule: 
+  NONTERMINAL modifiers textinfo RARROW transformations disjunction
+  {
+    last_correct_lineno=rarrow_lineno;
+    $$=new Rule(yygrammar);
+    $$->set_disjunction($6);
+    $$->set_left($1);
+    $$->set_textinfo($3);
+    $$->set_transformations($5);
+    $$->add_modifiers($2);
+
+    if ($3[0]) delete $3[0];
+    if ($3[1]) delete $3[1];
+    if ($3[2]) delete $3[2];
+    delete $1;
+  }
+;
+
+
+disjunction:
+  conjunction ';'
+  { 
+    $$=new Disjunction(yygrammar);
+    $$->add_conjunction($1);
+  }
+  | conjunction '|' disjunction
+  {
+    $3->add_conjunction($1);
+    $$=$3;
+  }
+;
+
+conjunction:
+  /* epsilon */
+  {
+    $$=new Conjunction(yygrammar);
+  }
+  | '@' conjunction
+  {
+    $$=$2;
+  }
+  | '!' conjunction
+  {
+    $2->set_default();
+    $$=$2;
+  }
+  | NONTERMINAL conjunction
+  {
+    $2->add_nonterminal($1);
+    $$=$2;
+    delete $1;
+  }
+  | TERMINAL conjunction
+  {
+    $2->add_terminal($1);
+    $$=$2;
+    delete $1;
+  }
+  | SPECIAL initvalue conjunction
+  {
+    $3->add_special($1, new list<Parameter *>, $2);
+    $$=$3;
+    delete $1;
+  }
+  | SPECIAL '(' parameters ')' initvalue conjunction
+  {
+    $6->add_special($1, $3, $5);
+    $$=$6;
+    delete $1;
+  }
+  | SPECIAL '(' ')' initvalue conjunction
+  {
+    $5->add_special($1, new list<Parameter *>, $4);
+    $$=$5;
+    delete $1;
+  }
+;
+
+parameters:
+  parameter
+  {
+    $$=new list<Parameter *>;
+    $$->push_front($1);
+  }
+  | parameter ',' parameters 
+  {
+    $3->push_front($1);
+    $$=$3;
+  }
+;
+
+
+parameter:
+  NUMBER
+  {
+    $$=new Parameter(yygrammar);
+    $$->set_numeral($1);
+  }
+  | NONTERMINAL
+  {
+    $$=new Parameter(yygrammar);
+    $$->set_nonterminal($1);
+    delete $1;
+  }
+  | TERMINAL
+  {
+    $$=new Parameter(yygrammar);
+    $$->set_string($1);
+    delete $1;
+  }
+  | REGEXP
+  {
+    $$=new Parameter(yygrammar);
+    $$->set_regexp($1);
+    delete $1;
+  }
+  | TRANSLITERATION
+  {
+    $$=new Parameter(yygrammar);
+    $$->set_transliteration($1);
+    delete $1[0];
+    delete $1[1];
+  }
+  | SUBSTITUTION
+  {
+    $$=new Parameter(yygrammar);
+    $$->set_substitution($1);
+    delete $1[0];
+    delete $1[1];
+    delete $1[2];
+  }
+;
+
+
+initvalue:
+  /* epsilon */
+  {
+    $$=0;
+  }
+  | '=' parameter
+  {
+    $$=$2;
+  }
+;
+
+
+textinfo:
+  /* epsilon */
+  {
+    $$[0]=0;
+    $$[1]=0;
+    $$[2]=0;
+  }
+  | TERMINAL
+  {
+    $$[0]=$1;
+    $$[1]=0;
+    $$[2]=0;
+  }
+  | TERMINAL TERMINAL
+  {
+    $$[0]=$1;
+    $$[1]=$2;
+    $$[2]=0;
+  }
+  | TERMINAL TERMINAL TERMINAL
+  {
+    $$[0]=$1;
+    $$[1]=$2;
+    $$[2]=$3;
+  }
+;
+
+
+modifiers:
+  /* epsilon */
+  {
+    $$=new list<string *>;
+  } 
+  | MODIFIER modifiers
+  {
+    $2->push_back($1);
+    $$=$2;
+    // $1 is deleted in rule `rule' :)
+  } 
+;
+
+
+transformations:
+  /* epsilon */
+  {
+    $$=new list<Parameter *>;
+  }
+  | TRANSLITERATION transformations
+  {
+    Parameter * t=new Parameter(yygrammar);
+    t->set_transliteration($1);
+    $2->push_back(t);
+    $$=$2;
+    delete $1[0];
+    delete $1[1];
+  }
+  | SUBSTITUTION transformations
+  {
+    Parameter * t=new Parameter(yygrammar);
+    t->set_substitution($1);
+    $2->push_back(t);
+    $$=$2;
+    delete $1[0];
+    delete $1[1];
+    delete $1[2];
+  }
+;
+
+%%
+
+int yyerror(const char *)
+{
+    return 0;
+}

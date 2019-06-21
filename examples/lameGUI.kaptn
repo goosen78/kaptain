@@ -1,0 +1,575 @@
+#!/usr/bin/kaptain
+#
+# lameGUI version 0.21 using kaptain grammer (C) 2000 by Jens Henrik Goebbert, goebbert@epost.de
+# released under the GNU General Public License, version 2
+# http://www.fsf.org/copyleft/gpl.txt
+#
+
+start "LameGUI (Lame MP3 Encoder)"-> lame buttons;
+lame :tabbed :reverse -> audio_options lame_options general;
+
+
+#----------BASICS-----------
+general "general"-> up_1 down_1;
+ up_1 :horizontal -> left right;
+  left :framed -> input;
+   input  "input device"    ->  audio | file!;
+    audio "direct recording"   -> " - ";
+    file  "wav-file"           -> " "@infile("*.wav")="~/test.wav"" ";
+   input_2 -> ao_up" | " | "";
+   input_2 <- input;
+
+  right :framed -> output konsole;                    
+   output "output file"     -> " "@outfile("*.mp3")="~/test.mp3";
+   konsole  "konsole"-> the_konsole;
+    the_konsole "see all output" -> "konsole --caption LameGUI-Output --notoolbar --nohist --nowelcome --vt_sz 120x20 -e bash -c '" |@;
+    the_konsole_2->";echo;echo finished ... will close in 3 sec;sleep 3 '"|"";
+    the_konsole_2<-the_konsole;
+ down_1 -> @;
+#--------detailed BASICS description----------
+output=""<<END
+put in a filename where the mp3 shall be saved
+But be carefull ->
+an existing file would be overwritten
+END
+;
+audio="""you want to record from your soundcard directly";
+file="""you want to convert a WAV file to an mp3";
+down_1=<<END
+ .   This is a graphical user interface (GUI) for lame (the mp3-encoder).
+ .   it requires:
+ .               1.lame
+ .   optional is:
+ .               1. arecord (for direct recording)
+ .               2. kmix      (for direct recording)
+ .   version 0.21 by Jens Henrik Goebbert (goebbert@epost.de)
+ .      ----> please send ideas and bugreports <----
+END
+;
+#----------lame Options---------
+lame_options  "lame options" -> l_up l_down;
+ l_up :horizontal :framed-> l_fixed | l_variable;
+  l_fixed "fixed bitrate"->l_fixed_2;
+  l_fixed_2 :framed ->l_bitraten l_quality;
+   l_bitraten :beside "bitrate"        -> " -b "@combo("32","40","48","56","64","80","96","112","128","160","192","224","256","320")=9" ";
+   l_quality :horizontal "mp3 quality"    ->l_high | l_normal ! | l_low ;
+    l_high "high"     -> " -h ";
+    l_normal "normal" -> "";
+    l_low "low"       -> " -f ";
+  l_variable "variable bitrate" ->l_variable_2;
+   l_variable_2 ->l_vb_up l_vb_down;
+    l_vb_up :framed :horizontal->l_vb_min l_vb_max;
+     l_vb_min :beside "min. bitrate"            -> " -b " @combo("32","40","48","56","64","80","96","112","128","160","192","224","256","320")=4" ";
+     l_vb_max :beside "max. bitrate"            -> " -B " @combo("8","16","32","40","48","56","64","80","96","112","128","160","192","224","256","320")=16 " ";
+    l_vb_down :horizontal -> l_vb_down_1 l_vb_down_2;
+     l_vb_down_1 :framed -> l_vb_quality;
+      l_vb_quality "VBR quality" ->" -V "@integer(0,9)=4" ";
+     l_vb_down_2 :framed -> l_vbrheader;
+      l_vbrheader "VBR header" -> l_vbrheader2;
+       l_vbrheader2 "yes/no"-> " -t " | @;
+ l_down -> l_forboth extras;
+  l_forboth :horizontal-> l_sm l_resamplebox;
+   l_sm :framed ->l_stereo_mono;
+   l_stereo_mono :horizontal "encode in..." -> l_mono |l_stereo !| l_jointstereo | l_forcejoint;
+    l_stereo "stereo"            -> " -m s ";
+    l_mono   "mono"              -> " -m m ";
+    l_jointstereo "joint stereo" -> " -m j ";
+    l_forcejoint  "force joint stereo" ->" -m f ";
+   l_resamplebox :framed -> l_resample;
+    l_resample "resample to ..." ->l_rs;
+    l_rs :beside -> " --resample " @combo("16","22.05","24","32","44.1","48")=5" " | @!;
+
+#--------detailed lame options description----------------
+l_fixed="""use a fixed bitrate which is faster to encode"<<END
+Use a fixed bitrate which is faster to encode.
+MPEG1 (sampling frequencies of 32, 44.1 and 48kHz)
+n = 32,40,48,56,64,80,96,112,128,160,192,224,256,320
+MPEG2 (sampling frequencies of 16, 22.05 and 24kHz)
+n = 8,16,24,32,40,48,56,64,80,96,112,128,144,160
+Default is 128 kbs for MPEG1 and 80 kbs for MPEG2.
+END
+;
+l_stereo="""select stereo for your mp3"<<END
+In this mode, the encoder makes no use of potentially
+existing correlations between the two input channels.
+It can, however, negotiate the bit demand between
+both channel, i.e. give one channel more bits if the
+other contains silence or needs less bits because of
+a lower complexity.
+(Joint-stereo is the default mode for stereo files
+with VBR when -v is more than 4 or fixed bitrates of
+160kbs or less. At higher fixed bitrates or higher
+VBR settings, the default is stereo.)
+END
+;
+l_mono="""select mono for your mp3"<<END
+The input will be encoded as a mono signal. If it
+was a stereo signal, it will be downsampled to mono.
+The downmix is calculated as the sum of the left
+and right channel, attenuated by 6 dB.
+(Joint-stereo is the default mode for stereo files
+with VBR when -v is more than 4 or fixed bitrates of
+160kbs or less. At higher fixed bitrates or higher
+VBR settings, the default is stereo.)
+END
+;
+l_jointstereo="""select joint stereo for your mp3"<<END
+In this mode, the encoder will make use of a
+correlation between both channels. The signal will be
+matrixed into a sum ("mid"), computed by L+R, and
+difference ("side") signal, computed by L-R, and more
+bits are allocated to the mid channel. This will
+effectively increase the bandwidth if the signal does
+not have too much stereo separation, thus giving a
+significant gain in encoding quality. Using mid/side
+stereo inappropriately can result in audible
+compression artifacts. To much switching between
+mid/side and regular stereo can also sound bad.
+To determine when to switch to mid/side stereo,LAME
+uses a much more sophisticated algorithm than that
+described in the ISO documentation, and thus is safe
+to use in joint stereo mode.
+(Joint-stereo is the default mode for stereo files
+with VBR when -v is more than 4 or fixed bitrates of
+160kbs or less. At higher fixed bitrates or higher
+VBR settings, the default is stereo.)
+END
+;
+l_forcejoint="""This mode will force MS joint stereo on all frames."<<END
+This mode will force MS joint stereo on all frames.
+It's slightly faster than joint stereo, but it should
+be used only if you are sure that every frame of the
+input file has very little stereo separation
+(Joint-stereo is the default mode for stereo files
+with VBR when -v is more than 4 or fixed bitrates of
+160kbs or less.At higher fixed bitrates or higher VBR
+settings, the default is stereo.)
+END
+;
+l_variable="""make use of variable bitrates"<<END
+Enable VBR (Variable BitRate)
+lame finds the best bitrate for each part of
+the mp3.
+(This sets the  mp3 quality switch automaticly
+ to "high".)
+END
+;
+l_high="""Use some quality improvements"<<END
+Use some quality improvements. Encoding will be
+slower, but the result will be of higher quality.
+This switch is always enabled when using VBR.
+END
+;
+l_normal="""no fancy quality improvements""no fancy quality improvements";
+l_low=""<<END
+This switch forces the encoder to use a faster
+encoding mode, but with a lower quality.
+END
+<<END
+This switch forces the encoder to use a faster
+encoding mode, but with a lower quality.
+Noise shaping will be disabled, but psycho acoustics
+will still be computed for bit allocation and
+pre-echo detection.
+END
+;
+l_resample="""Select ouptut sampling frequency."<<END
+n = 16, 22.05, 24, 32, 44.1, 48
+Select ouptut sampling frequency.
+If not specified, LAME will automatically resample
+the input when using high compression ratios
+END
+;
+l_vb_max="" "Specifies the maximum allowed bitrate when using VBR." <<END
+MPEG1 (sampling frequencies of 32, 44.1 and 48kHz)
+n = 32,40,48,56,64,80,96,112,128,160,192,224,256,320
+MPEG2 (sampling frequencies of 16, 22.05 and 24kHz)
+n = 8,16,24,32,40,48,56,64,80,96,112,128,144,160
+Specifies the maximum allowed bitrate when using VBR.
+note: If you own an mp3 hardware player build upon a
+MAS 3503 chip, you must set maximum bitrate to no
+more than 224 kpbs.
+END
+;
+l_vbrheader2="" "Disable writing of the VBR Tag (only valid in VBR mode)." <<END
+Disable writing of the VBR Tag (only valid in VBR
+mode).
+This tag in embedded in frame 0 of the MP3 file.
+It lets VBR aware players correctly seek and compute
+playing times of VBR files. When '--decode' is
+specified (decode to WAV), this flag will disable
+writing of the WAV header. The output will be raw
+pcm, native endian format. Use -x to swap bytes.
+END
+;
+
+
+#---------advanced lame options--------
+  extras :dialog "advanced options for lame" -> al_up al_down;
+   al_up :framed -> al_options;
+   al_options :horizontal -> al_left al_center al_right;
+    al_left    ->  al_c al_o al_g  al_a  al_d al_ath al_abr al_preset al_e;
+    al_center  ->  al_nores al_noshort al_F al_p  al_r al_S  al_x al_strict_ISO al_nohist;
+    al_right   ->  al_filter  ;
+
+     al_a           "downmix stereo file to mono"   -> " -a "         |@!;
+     al_abr :beside "average bitrate encoding"      -> " -abr "@integer(4,310)=100       |@!;
+     al_nohist      "disable histogram display"     ->" --nohist "|@!;
+     al_nores       "disable bit reservoir"         ->" --nores "|@!;
+     al_noshort     "disable short block frames"    ->" --noshort "|@!;
+     al_o           "mark mp3 as copy"              ->" -o "|@!;
+     al_p           "error protection"              ->" -p "|@!;
+     al_preset :beside "use built in presets"       ->" --preset "@combo("phone","voice","fm","tape","hifi","cd","studio")=4" " |@!;
+     al_r           "input file is raw pcm"         ->" -r "|@!;
+     al_S           "silent operation"              ->" -S "|@!;
+     al_strict_ISO  "strict ISO compliance"         ->" --strictly-enforce-ISO "|@!;
+     al_x           "swapbytes"                     ->" -x "|@!;
+     al_c           "copyright"                     -> " -c "         |@!;
+     al_d           "block type control"            -> " -d "|@!;
+     al_e :beside   "de-emphasis"                   -> " -e "@combo("n","5","c")" "|@!;
+     al_F           "strictly enforce the -b option"-> " -F "         |@!;
+     al_g           "graphical frame analyser"      -> " -g "         |@!;
+
+     al_filter :framed                              ->al_filter_2;
+      al_filter_2 "Bandwidth settings..."           -> al_filter_default | al_filter_manual | al_k;
+       al_filter_default "default settings"         -> "";
+       al_filter_manual "manual filter settings"                 -> al_highpasstext al_lowpasstext;
+       al_k           "full bandwidth"              ->" -k ";
+        al_highpasstext :framed                     -> al_high;
+         al_high "highpass"                         ->al_highpass al_highpass_width;
+          al_highpass       :beside "filtering frequency in kHz"     ->" --highpass "@integer(0,20)=0" "|@!;
+          al_highpass_width :beside "width of filtering in kHz"      ->" --highpass-width "@integer(0,20)=0" "|@!;
+        al_lowpasstext :framed                      ->al_low;
+         al_low "lowpass"                           -> al_lowpass al_lowpass_width;
+          al_lowpass        :beside "filtering frequency in kHz"     ->" --lowpass " @integer(0,20)=20|@!;
+          al_lowpass_width  :beside "width of filtering in kHz"      ->" --lowpass-width " @integer(0,20)=20" "|@!;
+
+     al_ath         "ATH options ..."               -> al_ath2 |@!;
+      al_ath2 :horizontal                           -> al_athonly | al_noath;
+       al_athonly     "only ATH"                    -> " -athonly ";
+       al_noath       "no ATH"                      -> " --noath ";
+
+#al_mp3input
+#al_decode
+#al_disptime
+#al_comp        "choose sompression ratio"      -> " --comp "     |@!;
+#al_freeformat  "free format bitstream"         -> " --freeformat " |@!;
+
+al_down -> @close="OK";
+
+#-------------detailed description of advanced lame options ------------
+al_filter_default="""Lame uses his default filter settings";
+al_filter_manual="""You can set up your own filter settings here";
+al_a="" "Mix the stereo input file to mono and encode as mono.(only for PCM input)" <<END
+Mix the stereo input file to mono and encode as
+mono. The downmix is calculated as the sum of the
+left and right channel, attenuated by 6 dB. This
+option is only needed in the case of raw PCM stereo
+input (because LAME cannot determine the number of
+channels in the input file). To encode a stereo PCM
+input file as mono, use "lame -m s -a". For WAV and
+AIFF input files, using "-m m" will always produce
+a mono .mp3 file from both mono and stereo input.
+END
+;
+al_abr="" "Turns on encoding with a targeted average bitrate of n kbits, allowing to use frames of different sizes." <<END
+Turns on encoding with a targeted average bitrate
+of n kbits, allowing to use frames of different
+sizes. The allowed range of n is 4-310, you can use
+any integer value within that range. It can be
+combined with the -b and -B switches like
+lame --abr 123 -b 64 -B 192 a.wav a.mp3
+which would limit the allowed frame sizes between
+64 and 192 kbits. Using -B is NOT RECOMMENDED.
+A 128kbs CBR bitstream, because of the bit
+reservoir, can actually have frames which use as
+many bits as a 320kbs frame. VBR modes minimize the
+use of the bit reservoir, and thus need to allow
+320kbs frames to get the same flexibility as CBR
+streams.
+END
+;
+al_ath="" "A(absolute)T(threshold)H(of hearing) => ATH";
+
+al_athonly="" "This option causes LAME to ignore the output of the psy-model and only use masking from the ATH" <<END
+This option causes LAME to ignore the output of the
+psy-model and only use masking from the ATH
+(absolute threshold of hearing). Might be useful at
+very high bitrates or for testing the ATH.
+END
+;
+al_c="" "Mark the encoded file as being copyrighted." <<END
+Mark the encoded file as being copyrighted.
+END
+;
+#al_comp="" "Instead of choosing bitrate, using this option, user can choose compression ratio to achieve." <<END
+#Instead of choosing bitrate, using this option,
+#user can choose compression ratio to achieve.
+#END
+#;
+al_d="" "Allows the left and right channels to use different block size types." <<END
+Allows the left and right channels to use different
+block size types.
+END
+;
+#al_decode="" "Use LAME for decoding to a wav file." <<END
+#Use LAME for decoding to a wav file.
+#The input file can be any input type supported by
+#encoding, including MP3 and OGG files. In case of
+#MP3 files, LAME uses a bugfixed version of mpglib
+#for decoding. If -t is used (disable wav header),
+#Lame will output raw pcm in native endian format.
+#You can use -x to swap bytes order.
+#END
+#;
+#al_disptime="" "";
+al_e="" "All this does is set a flag in the bitstream." <<END
+n = (none, default)
+5 = 0/15 microseconds
+c = citt j.17
+All this does is set a flag in the bitstream.
+If you have a PCM input file where one of the above
+types of (obsolete) emphasis has been applied, you
+can set this flag in LAME. Then the mp3 decoder
+should de-emphasize the output during playback,
+although most decoders ignore this flag. A better
+solution would be to apply the de-emphasis with a
+standalone utility before encoding, and then encode
+without -e
+END
+;
+al_F="" "This is mainly for use with hardware players that do not support low bitrate mp3." <<END
+This is mainly for use with hardware players that
+do not support low bitrate mp3. Without this
+option, the minimum bitrate will be ignored for
+passages of analog silence, ie when the music level
+is below the absolute threshold of human hearing
+(ATH).
+END
+;
+#al_freeformat="" "Produces a free format bitstream." <<END
+#Produces a free format bitstream. With this option,
+#you can use -b with any bitrate higher than 8 kbps.
+#However, even if an mp3 decoder is required to
+#support free bitrates at least up to 320 kbps, many
+#players are unable to deal with it. Tests have
+#shown that the following decoders support free
+#format:
+#FreeAmp up to 440kbps
+#in_mpg123 up to 560kbps
+#l3dec up to 310kbps
+#LAME up to 560kbp
+#END
+#;
+al_g="" "turn on MP3x graphical frame analyser" <<END
+turn on MP3x graphical frame analyser (may not be
+available on your release). It needs GTK installed.
+END
+;
+al_highpass="" "Set an highpass filtering frequency." <<END
+Set an highpass filtering frequency.
+Frequencies below the specified one will be cutoff.
+END
+;
+al_highpass_width="" "Set the width of the highpass filter." <<END
+Set the width of the highpass filter.
+The default value is 15% of highpass frequency.
+END
+;
+al_k="" "Tells the encoder to use full bandwidth and to disable all filters." <<END
+Tells the encoder to use full bandwidth and to
+disable all filters. By default, the encoder uses
+some highpass filtering at low bitrates, in order
+to keep a good quality by giving more bits to more
+important frequencies. Increasing the bandwidth
+from the default setting might produces ringing
+artefacts at low bitrates.
+Use with care!
+END
+;
+al_lowpass="" "Set a lowpass filtering frequency." <<END
+Set a lowpass filtering frequency.
+Frequencies above the specified one will be cutoff.
+END
+;
+al_lowpass_width="" "Set the width of the lowpass filter." <<END
+Set the width of the lowpass filter.
+The default value is 15% of lowpass frequency.
+END
+;
+#al_mp3input="" "Assume the input file is a MP3 file." <<END
+#Assume the input file is a MP3 file.
+#Usefull for downsampling from one mp3 to another.
+#As an example, it can be usefull for streaming
+#through an IceCast server. If the filename ends in
+#".mp3" LAME will assume it is an MP3. For stdin or
+#MP3 files which dont end in .mp3 you need to use
+#this switch.
+#END
+#;
+al_noath="" "Disable any use of the ATH for masking." <<END
+Disable any use of the ATH (absolute threshold of
+hearing) for masking. Normally, humans are unable
+to hear any sound below this threshold. Disabling
+use of this feature might be usefull for music
+recorded at extremely low level.
+END
+;
+al_nohist="" "LAME will NOT display a bitrate histogram while producing VBR mp3 files" <<END
+By default, LAME will display a bitrate histogram
+while producing VBR mp3 files. This will disable
+that feature. Histogram display might not be
+available on your release.
+END
+;
+al_nores="" "Disable the bit reservoir." <<END
+Disable the bit reservoir.
+Each frame will then become independent from
+previous ones, but the quality will be lower.
+END
+;
+al_noshort="" "Encode all frames using long blocks only." <<END
+Encode all frames using long blocks only.
+This could increase quality when encoding at very
+low bitrates, but can produce serious pre-echo
+artefacts.
+END
+;
+al_o="" "Mark the encoded file as a copy." <<END
+Mark the encoded file as a copy.
+END
+;
+al_p="" "Turn on CRC error protection." <<END
+Turn on CRC error protection.
+It will add a cyclic redundancy check (CRC) code
+in each frame, allowing to detect transmission
+errors that could occur on the MP3 stream.
+However, it takes 16 bits per frame that would
+otherwise be used for encoding,
+and then will slightly reduce the sound quality.
+END
+;
+al_preset="" "Use one of the built-in presets." <<END
+Use one of the built-in presets.
+This will overwrite all lame settings to
+optimize them for the speciell input type.
+END
+;
+al_r="" "Assume the input file is raw pcm." <<END
+Assume the input file is raw pcm.
+Sampling rate and mono/stereo/jstereo must be
+specified on the command line.
+Without -r, LAME will perform several fseek()'s
+on the input file looking for WAV and AIFF headers.
+Might not be available on your release.
+END
+;
+al_S="" "Don't print progress report" <<END
+Don't print progress report
+END
+;
+al_strict_ISO="" "With this option, LAME will enforce the 7680 bit limitation on total frame size." <<END
+With this option, LAME will enforce the 7680 bit
+limitation on total frame size.
+This results in many wasted bits for high bitrate
+encodings but will ensure strict ISO compatibility.
+END
+;
+al_x="" "Swap bytes in the input file (or ouptut file when using --decode)." <<END
+Swap bytes in the input file (or ouptut file when
+using --decode). For sorting out little endian/big
+endian type problems. If your encodings sounds like
+static, try this first.
+END
+;
+
+#----------audio options---------
+audio_options "recording options" -> ao_up ao_down;
+ ao_up :horizontal :framed ->ao_arecord | ao_user;
+ ao_arecord "use 'arecord'" -> ao_sample_fr;
+  ao_sample_fr :framed -> ao_sample ao_stereo_mono;
+   ao_sample "record from soundcard with ..."-> ao_dsp | ao_cd ! ;
+    ao_cd  "cd quality  (44100Hz - 16-bit)"->"arecord -w  -m ";
+    ao_dsp "dat quality (48000Hz - 16-bit)"->"arecord -w  -M ";
+   ao_stereo_mono :horizontal "record from soundcard with..." -> ao_stereo | ao_mono ;
+    ao_stereo "stereo" -> " -S ";
+    ao_mono   "mono"   -> "";
+  ao_user "use manual settings" -> ao_up_right;
+  ao_up_right :framed ->ao_direct;
+   ao_direct :beside  ->ao_manual ao_manual_text;
+     ao_manual->@string="arecord -w -m ";
+     ao_manual_text->@text(<<END
+ If you want to use a
+ different program than
+ arecord, the pipe (|)
+ will be set at the end
+ of your line automatically.
+ Check with preview button.
+END
+);
+ ao_down -> ao_channel;
+  ao_channel  -> @action("kmix")="select input channel";
+
+#---------------detailed audio options description------------
+
+ao_cd="" <<END
+you will record with cd-like quality (44100Hz 16bit)
+- this only affects the data send to lame - not the mp3 (!)
+END
+;
+ao_dsp=""<<END
+you will record with dat-like quality (48000Hz 16bit)
+- this only affects the data send to lame - not the mp3 itself(!)
+END
+;
+ao_direct=""<<END
+if you want to set up the soundcard options on your own - do it here
+but (!) it does not work with my soundcard (do not know why)
+END
+;
+ao_stereo=""<<END
+here you just select how your soundcard will record
+- this only affects the data send to lame - not the mp3 itself(!)
+END
+;
+ao_mono=""<<END
+here you just select how your soundcard will record
+- this only affects the data send to lame - not the mp3 (!)
+END
+;
+ao_channel="""select the channel of your soundcard from which you want to record";
+
+#-------BUTTONS-AND-ACTION-------
+buttons :framed :horizontal -> mp3_buttons gui_buttons;
+ gui_buttons "LameGUI" -> @exec("rm -f ~/.lameGUI.pid")="exit";
+ mp3_buttons :horizontal "encoding" -> ba_start ba_preview ba_stop;
+  ba_start  ->@action(encode)="start";
+  ba_preview->@preview(encode)="preview";
+  ba_stop   ->@action(stopit)="stop";
+
+encode ->the_konsole input_2  " lame "l_stereo_mono l_resample l_up al_up input output the_konsole_2 " & echo $! > ~/.lameGUI.pid";
+stopit -> "kill $(cat ~/.lameGUI.pid) & echo recording stopped";
+#---------------detailed button-and-action description-------------
+ba_start=""<<END
+use this buttons to start and stop encoding with lame
+-> avoid pressing twice on the start button
+because that will start another prozess, which
+can only be stopped manuelly (with "ps -x" and "kill ...")
+END
+;
+ba_preview=""<<END
+here you can see the command,
+which will be executed if you
+press "start"
+END
+;
+ba_stop="""this will stop encoding immediately";
+
+
+
+
+
+
+
+
+

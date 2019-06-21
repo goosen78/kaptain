@@ -1,0 +1,1151 @@
+This is kaptain.info, produced by makeinfo version 4.13 from
+kaptain.texi.
+
+INFO-DIR-SECTION Utilities
+START-INFO-DIR-ENTRY
+* Kaptain: (kaptain).           Universal graphical front-end.
+END-INFO-DIR-ENTRY
+
+   This is a manual for Kaptain, the Universal Graphical Front-end.
+
+   Copyright (C) 2000-2004 Zsolt Tere'k
+
+
+File: kaptain.info,  Node: Top,  Next: The Concepts of Kaptain,  Prev: (dir),  Up: (dir)
+
+* Menu:
+
+* The Concepts of Kaptain::
+* Invoking Kaptain::
+* Grammar Scripts::
+* Examples::
+* External Control::
+* Errors::
+* Reference of Special Symbols::
+* Reference of Modifiers::
+* Concept Index::               Concept index.
+
+
+File: kaptain.info,  Node: The Concepts of Kaptain,  Next: Invoking Kaptain,  Prev: Top,  Up: Top
+
+1 The Concepts of Kaptain
+*************************
+
+Kaptain is a universal graphical front-end. It was originally developed
+in order to provide a simple and efficient tool for creating
+dialog-based interface for command line programs. Now, its communication
+features allow it to serve the graphical user interface of a program
+without directly using a graphical library, such as GTK or Qt.
+
+   When Kaptain is started, it reads a so-called grammar script. This
+is a text file, which contains a description in a form of a context-free
+grammar and optionally some other instructions. This manual refers to
+the input file of Kaptain as a _grammar script._ See *note Grammar
+Scripts:: for a complete overview on grammar script syntax.  
+
+   According to the grammar script, Kaptain builds a _graphical dialog
+box_.  Certain parts of the dialog box are associated with certain
+elements of the grammar. This association is quite natural, thats why
+Kaptain's language is so easy to learn.  
+
+   In the dialog box, several widgets are present. These objects can be
+manipulated by the user--text can be entered into input fields,
+checkboxes can be set on and off. When a certain push button is pressed,
+Kaptain reads the data specified by the user in the dialog box and uses
+the context-free grammar to generate text. The generated text is then
+executed as a command, just like as if it were entered at the command
+prompt.
+
+   Suppose we have a program named `prog' that runs in two different
+modes. For its first mode, an integer parameter should be given, and the
+second mode needs some text as parameter. An example for starting
+`prog' in its first mode:
+   and in second mode
+   Kaptain is a perfect tool for creating a graphical front-end for this
+program. First of all, we need to describe the possible command lines
+with a grammar.
+     start -> "prog " parameter ;
+     parameter -> "-x " @integer | "-y " @string ;
+
+   The grammar in the example above is almost enough for Kaptain to
+build a dialog containing an integer input box and a string input
+field, each having a radio button. Additionally a push button is needed
+and some text might be specified in order to label the input fields.
+
+   Given a file containing such a description, Kaptain parses the
+grammar and builds a dialog box. When the push button is pressed, the
+text is generated according to the settings of the user.
+
+   The complete grammar for the program above might look like this:
+     start -> "prog " parameter @action(start)="Ok";
+     parameter -> x | y ;
+     x "First mode" -> "-x " @integer;
+     y "Second mode" -> "-y " @string;
+
+
+File: kaptain.info,  Node: Invoking Kaptain,  Next: Grammar Scripts,  Prev: The Concepts of Kaptain,  Up: Top
+
+2 Invoking Kaptain
+******************
+
+Kaptain needs a grammar script in order to display the dialog. This is
+usually located in a file, and the name of that file is passed to
+Kaptain as an argument. The grammar script can be written to the
+standart input of Kaptain, too.
+
+   The running mode of Kaptain can be normal or test mode. In test mode,
+commands are not executed, they are printed to the standard output
+instead.
+
+   The command line of Kaptain generally looks like this:
+     Kaptain [options] FILE
+   If the FILE is omitted, the standard input is used as a source for
+the input file.
+
+   Some options are used to specify running mode, while others set up
+different kinds of communication channels for external control. Kaptain
+accepts the following switches and parameters:
+`--version'
+     Print out the version information of Kaptain end quit.
+
+`--help'
+     Write a brief help on command line options.
+
+`--test'
+     Run in test mode. This means that commands are not executed when a
+     button is pressed, only printed to the standard output.
+
+`-V'
+`--verbose'
+     Report more information on processing the input file. Internal
+     representation of the grammar and the dialog tree is also printed.
+     Use this flag if Kaptain does not work as expected.
+
+`-c HOST:PORT'
+`--client HOST:PORT'
+     Establish communication channel as a client connecting to a server
+     on HOST listening on PORT.
+
+`-s PORT'
+`--server PORT'
+     Listen to the specified PORT and accept the first connection. This
+     will be used as a communication channel.
+
+`-p COMMAND'
+`--pipe COMMAND'
+     Start the given command and communicate with it on its standard
+     input and output. Don't forget to quote COMMAND if it contains
+     spaces or other metacharacters used by the shell.
+
+`--stdio'
+     Use standard input and output for communication. In this case you
+     must specify an input file, thus grammar script cannot be read
+     from the standard input when it is used as a communication channel.
+
+`--no-input'
+     Instructs Kaptain not to process messages recieved on the input
+     channel.
+
+`--no-output'
+     If this flag is set, Kaptain will not send any messages on its
+     output channel.
+
+
+   These are the possible parameters and options accepted by Kaptain
+called from the command prompt.
+
+
+File: kaptain.info,  Node: Grammar Scripts,  Next: Examples,  Prev: Invoking Kaptain,  Up: Top
+
+3 Grammar Scripts
+*****************
+
+The input file of Kaptain is a grammar script. It contains the
+description of a context-free grammar in a form of rules. Beside the
+rules, it might also contain so-called descriptions and constraints.
+
+   Comments can be placed in grammar scripts. Hashmark (`#') is a
+comment character, which means that all characters after the hashmark up
+to the end of the line are ignored together with the hashmark. This is
+not true if the hashmark appears inside a quoted string, see *note
+Quotations::.  
+
+* Menu:
+
+* Grammars::
+* Special symbols::
+* Quotations::
+* Regulas expressions and translations::
+* Using text manipulation in grammar rules::
+
+
+File: kaptain.info,  Node: Grammars,  Next: Special symbols,  Prev: Grammar Scripts,  Up: Grammar Scripts
+
+3.1 Grammars
+============
+
+The program Kaptain reads an input file containing the description in
+the form of a context-free grammar. The concept of context-free grammar
+is coming form formal linguistic. A grammar is built up of several
+rules. Each rule contains a left hand side symbol and some symbols on
+the right hand side separated by an arrow:
+     start -> "progname" options parameters ;
+   An interpretation of a rule is the following. The symbol on the left
+hand side, which is a _nonterminal symbol_ is considered as the
+concatenation of the symbols on the right, which can be either
+_nonterminal_ or _terminal symbols_. In a Kaptain grammar, symbols are
+separated by whitespace and rules should end with a semicolon.
+
+   Nonterminal symbols are similar to variables in other programming
+languages. Their name can contain alphanumeric characters and
+underscore, and should not begin with numbers.  
+
+   Terminal symbols are written between quotation marks. Kaptain has
+many ways for specifying terminal symbols, see *note Quotations:: 
+
+   The text generation process is an iterated application of rules on
+the current sentence. Starting from the nonterminal symbol `start',
+every step consists of an application of a rule. This means that a
+nonterminal symbol in the current sentence--which is the left hand side
+of the applied rule--is replaced by the symbols on right hand side of
+the rule. This process ends if there are no more nonterminal symbols in
+the current sentence.  
+
+   To illustrate text generation, let us have the following grammar:
+     start -> "Your " animal "is " size ;
+     animal -> "dog " ;
+     animal -> "cat " ;
+     size -> "big." ;
+     size -> "small." ;
+
+   Starting with the sentence `start', only the first rule can be
+applied.  The current sentence is then `"Your " animal "is " size'.
+Here both `animal' and `size' is nonterminal, thus any of the rules but
+the first can be applied. This way exactly four different sentences can
+be generated by this grammar:
+     Your dog is big.
+     Your cat is small.
+     Your dog is big.
+     Your cat is small.
+
+   As a syntactic simplification, different rules of the same left hand
+side can be written in one complex rule using `|' character as a
+separator of the different right hand sides. The grammar above is
+equivalent to the following:
+     start -> "Your " animal "is " size ;
+     animal -> "dog " | "cat " ;
+     size -> "big." | "small." ;
+
+   The set of sentences that can be generated using a certain grammar is
+called the _language_ generated by that grammar. _Formal languages_ is
+a branch of mathematics that deals with languages and grammars.  
+
+* Menu:
+
+* Special symbols::
+
+
+File: kaptain.info,  Node: Special symbols,  Next: Quotations,  Prev: Grammars,  Up: Grammar Scripts
+
+3.2 Special symbols
+===================
+
+The expression power of grammars is great. However, sometimes it is
+quite comlicated to express simple things. For example, the definition
+of numbers is quite long and messy: (Of course, it is possible to write
+a different grammar for the numbers, this is not a unique definition.)
+     number -> digits ;
+     digits -> digit digits | digit ;
+     digit -> "0" | "1" | "2" | "3" | "4"
+            | "5" | "6" | "7" | "8" | "9" ;
+
+   Beside terminal and nonterminal symbols, Kaptain offers so-called
+_special symbols_ to appear in grammars.  Special symbols always start
+with `@'. Such a symbol almost always refers to a widget in the dialog.
+For example `@integer' represents a widget, which is a rectangular area
+where the user can write a decimal number. The special symbol evaluates
+to the value that it contains at the time of the text generation
+process.
+
+   Special symbols may accept different number of parameters and an
+optional initial value. The general form is as follows:
+     @specname(param_1, param_2, ..., param_n)=initvalue
+   If no parameters are given, the parentheses can be omitted. The same
+simplification can be applied to the initvalue, what's more, equality
+sign must not be written if no initvalue is present. The following forms
+are thus enabled:
+     @specname
+     @specname=initvalue
+     @specname(param_1, param_2, ...)
+     @specname(param_1, param_2, ...)=initvalue
+   Note that the number and type of parameters is not unique, but if
+Kaptain cannot interpret a certain parameter in some position, then it
+will be simply ignored.
+
+   The complete reference of special symbols can be found in *note
+Reference of Special Symbols::.
+
+
+File: kaptain.info,  Node: Quotations,  Next: Regulas expressions and translations,  Prev: Special symbols,  Up: Grammar Scripts
+
+3.3 Quotations
+==============
+
+Quotations are the constructions for specifying a literal string, which
+is a terminal symbol in the grammar. Kaptain understands a great variety
+of quotations in order to make it possible to write character sequences
+in the easiest way. The possibble quotations are similar to those of the
+language perl and the unix shells.
+
+_Double quotes_
+     Strings between double quotes are weakly quoted strings. This
+     means that some characters are treated as meta-characters. For
+     example, backslash (\) is an escape-character. The following
+     escape-sequences are available: `\n', `\t', `\"', `\\'. Other
+     characters are not modified if preceeded by backslash.  This way
+     one can place double quote character inside a string:
+          "Double quotes \" are easy to write."
+     which stands for
+          Double quotes " are easy to write.
+
+     An other meta-character is the dollar sign ($), which is used for
+     inserting environmental variables into strings. For example in
+     `"$HOME/hello"' the sequence `$HELLO' is replaced by the content
+     of the `HELLO' environmental variable. If the environmental
+     variable name contains other characters than letters, the
+     following form should be used: `${ANY89}'.
+
+     This kind of quotation should always end on the same line it was
+     started. If the end-of-line symbol is reached within the string,
+     Kaptain prints a warning.
+
+_Single quotes_
+     Strings quoted by a single apostrophe are strongly quoted strings.
+     This means that each character inside the string stands for
+     itself, except the apostrophe, which always means the ending of
+     the string. There is no way to include apostrophe in single quoted
+     strings.
+          'No way to have apostrophes in this string'
+     This kind of quotation should always end on the same line it was
+     started. If the end-of-line symbol is reached within the string,
+     Kaptain prints a warning.
+
+_Backquotes_
+     Strings in backquotes are treated in a special way. Immediately
+     after the string is parsed, Kaptain executes the given string as a
+     shell command, and inserts the text it has written to the standard
+     output instead of the original string. For example, placing ``ls`'
+     evaluates to a string which contains the file names of the current
+     directory. An easy way to create a list box containing the
+     available files is the following:
+          @list(`ls`)
+     Since command `ls' returns the files separated by a newline symbol,
+     `@list' inserts the different lines of its parameter value as
+     different list items. *Note Reference of Special Symbols::.
+
+     The commands are passed to `/bin/sh', so any shell constructions
+     can be given, e.g., pipes.
+
+     Using backquots is a strong form of quoting: there are no special
+     characters. As a consequence of this, no backquote (`) can appear
+     inside.
+
+_Perlish single quotes_
+     Single quotes are used when no apostrophes appear in the string.
+     Perl introduced a quotation form where the user chooses the most
+     appropriate delimiter and any other character can be placed
+     between the delimiters without modification. The following
+          q%any characters except the delimiter%
+     is evaluated to
+          any characters except the delimiter
+     and the delimiter character, here `%' can be replaced by any
+     _except_ the following: letters, numbers, `;().=:_-' and
+     whitespace.
+
+     The letter `q' at the beginning stands for _quotation_.
+
+_Perlish exection quotes_
+     Analogous to the previous generalization of single quotes, perl
+     generalizes backquotes using the following form:
+          x%shell command line not containing the delimiter%
+     which evaluates to
+          shell command line not containing the delimiter
+     The delimiter can be of the same set as above, and the letter `x'
+     stands for _execution_.
+
+_Multiline quotes_
+     A long string spreading on more than one line is usually written
+     using the line-delimiter construction.
+
+     When Kaptain parses two less signs (`<<'), the text up to the end
+     of the line is stored as a delimiter string and it starts to scan
+     a quotation.  The quotation is ended if a line occurs that is
+     exactly same as the delimiter string.
+
+          ... <<LINE_DELIMITER
+          Here goes
+          the long text
+          LINE_DELIMITER
+     The sample above evaluates to the following two lines:
+          Here goes
+          the long text
+     The ellipses indicates that the `<<' sequence needs not to be on
+     the beginning of a line. The quotation above is equivalent to the
+     following:
+          ... "Here goes\nthe long text"
+
+__
+
+
+File: kaptain.info,  Node: Regulas expressions and translations,  Next: Using text manipulation in grammar rules,  Prev: Quotations,  Up: Grammar Scripts
+
+3.4 Regulas expressions and translations
+========================================
+
+* Menu:
+
+* Regular expressions::
+* Substitutions::
+* Transliterations::
+
+   All expressions mentioned here use `/' (slash) as bounding
+character. This can be replaced by any expect letters, numbers, blanks,
+underscore, hyphen and semicolon. But the beginning and the ending
+bounding characters must be the same, there is no way to refer to that
+character inside the expression. For example, instead of `m/hello/',
+one can write `m%hello%', `m^hello^', and so on.
+
+
+File: kaptain.info,  Node: Regular expressions,  Next: Substitutions,  Prev: Regulas expressions and translations,  Up: Regulas expressions and translations
+
+3.4.1 Regular expressions
+-------------------------
+
+Kaptain understands regular expressions like grep or perl. For a
+detailed review, type `man grep' or `man perlre' at the command prompt.
+You can give a regular expression as a parameter to some special
+symbols, like this:
+     @string(m/$[0-9]*^/, ...
+
+   Here `m/$[0-9]*^/' means that the string value in the input line
+must _match_ the corresponding regular expression. In this particular
+case, this means the user can only type integers into the line input
+field.
+
+   When parentheses are found in the regular expression, a
+subexpression is matched which can be referred with `\d' where _d_ is a
+digit. (`\1', `\2', ... `\9') For example:
+     @multicol(m/([^[:blank:]]*)[[:blank:]]+([^[:blank:]]*)/,
+               "First_name Last_name",
+               "Albert Einstein Dr.", "Isaac Newton", "Rudolf Kepler")
+   Here the regular expression matches each separate string and the
+subexpressions match the first and the second word. In this case, a
+twocolumn listview is displayed, each line contains a name. The first
+column contains their first name, the second the last name. Note that
+the third word `"Dr."' in line `"Albert Einstein Dr."' is not matched
+by the second subexpression, so it is not displayed.
+
+
+File: kaptain.info,  Node: Substitutions,  Next: Transliterations,  Prev: Regular expressions,  Up: Regulas expressions and translations
+
+3.4.2 Substitutions
+-------------------
+
+Substitution is based on regular expression matching just like in perl
+or sed. (For some metacharacters, sed uses different syntax.)
+Substitution expression needs a regular expression and a substitution
+string as an input:
+     s/regexp/subs/
+
+   For example, to replace the words "dog" in a text to "cat, just write
+`s/dog/cat/g'. That `g' at the end means that substitution is repeated
+until the regular expression cannot match. In the second part, you can
+refer to the matched subexpressions by `\d', where `d' is a digit. `\0'
+refers to the whole matched string. Thus the following swaps the first
+two words in the text:
+     s/([^[:blank:]]*)[[:blank:]]+([^[:blank:]]*)/\2 \1/
+
+   You can use it in listbox:
+     @list(s/([^[:blank:]]*)[[:blank:]]+([^[:blank:]]*)/\2 \1/,
+          "Albert Einstein Dr.", "Isaac Newton", "Rudolf Kepler")
+   Here, the names in the listbox will appear in reverse order (this is
+common in Hungary) while the selected name will appear in the generated
+text in western style.
+
+
+File: kaptain.info,  Node: Transliterations,  Prev: Substitutions,  Up: Regulas expressions and translations
+
+3.4.3 Transliterations
+----------------------
+
+Transliteration is a very simple operation which replaces some
+characters with some others.
+     tr/abc/def/
+   This replaces `a' with `d', `b' with `e', `c' with `f'.
+
+
+File: kaptain.info,  Node: Using text manipulation in grammar rules,  Prev: Regulas expressions and translations,  Up: Grammar Scripts
+
+3.5 Using text manipulation in grammar rules
+============================================
+
+If you put some substitution or transliteration expressions on the
+beginning of the right side of a rule, those are executed each time when
+text is generated with that rule. This means that for
+     no_jim_and_joe -> s/Jim/Peter/g s/Joe/Peter/g tr/+/-/ @string;
+   If the user writes Jim or Joe into the input box, it is replaced with
+Peter, and plus signs are changet to minus when the text is generated.
+
+   You can only mention `s///' and `tr///' operations just after the
+arrow of a rule, but any number of such expressions can be written
+there. They are executed from right to left, as it is expected naturally
+(in my opinion).
+
+
+File: kaptain.info,  Node: Examples,  Next: External Control,  Prev: Grammar Scripts,  Up: Top
+
+4 Examples
+**********
+
+If you write your own grammars, and you think they might be useful for
+others, please send them to me <terek@users.sourceforge.net>, I will
+put them to the main Kaptain site.
+
+* Menu:
+
+* Sound recording::
+* Creating archives::
+* Calling perl::
+
+
+File: kaptain.info,  Node: Sound recording,  Next: Creating archives,  Prev: Examples,  Up: Examples
+
+4.1 Sound recording
+===================
+
+Let's record from the microphone connected to the computer. The command
+is
+     terek@fido:~$ dd count=5 bs=8 < /dev/audio > myfile.au
+   It would be better to see a beautiful dialog. The grammar
+     #!/usr/local/bin/Kaptain
+     start:framed -> "dd count=" count " bs=" size "k <" input " > " output ;
+     count "Number of blocks" -> @integer=5 ;
+     size "Size of blocks (k)" -> @integer=8 ;
+     input "Input device" -> audio | dsp ;
+     audio "Audio" -> "/dev/audio" ;
+     dsp "DSP" -> "/dev/dsp" ;
+     output "Output file" -> @outfile("*.au");
+
+
+File: kaptain.info,  Node: Creating archives,  Next: Calling perl,  Prev: Sound recording,  Up: Examples
+
+4.2 Creating archives
+=====================
+
+Here is a simple grammar, just witten in 5 minutes (may contain errors,
+check before you try to use it!)
+     #!/usr/bin/kaptn
+
+     start "Tar" -> tar buttons;
+
+     tar -> "tar " choice " " opt archive " " files;
+     opt:framed :horizontal  -> extropt createopt ;
+
+     createopt "Write options" -> dump remove verb comp;
+     extropt "Read options" -> noerr keep same abs;
+
+     dump "Dump files, not just symlinks" -> "--dereference " | @;
+     noerr"Ignore failed read" -> "--ignore-failed-read " | @;
+     keep "Keep existing files" -> "-k " | @;
+     same "Extract all protection information" -> "-p " | @;
+     abs "Absolute path names" -> "-P " | @;
+     remove "Remove files after adding to archive"
+        -> "--remove-files " | @;
+     verb "Verbosely list files proceeded" -> "-v " | @;
+
+     comp -> compress | @;
+     compress "Compression" -> gzip | bzip;
+     gzip "gzip" -> "-z ";
+     bzip "bzip2" -> "--use-compress-program bzip2 ";
+
+     choice:framed  -> work;
+     work "Main choice" -> concat | ! create | diff | del | append
+                          | list | update | extract;
+     concat "Append to archive" -> "A";
+     create "Create archive" -> "c";
+     diff "Find differences between archive and file system" -> "d";
+     del "Delete from archive" -> "-delete";
+     append "Append to the end of an archive" -> "r";
+     list "List contents" -> "t";
+     update "Update archive" -> "u";
+     extract "Extract from archive" -> "x";
+
+     archive "Archive name" -> @infile;
+
+     files "Files to work with" -> @string ;
+
+     buttons :horizontal -> @action(tar)="OK" @close="Cancel";
+
+   <#if output="html">
+
+   This produces a command like
+     tar c --remove-files --use-compress-program bzip2 files.tar *.cpp *.h
+
+
+File: kaptain.info,  Node: Calling perl,  Prev: Creating archives,  Up: Examples
+
+4.3 Calling perl
+================
+
+Kaptain can generate various texts, such as complicated pipes or a piece
+of perl code.  To create your encrpyted password, use the perl command:
+     print crypt('passwd','sa')."\n";
+
+   Let's make the grammar:
+
+     #!/usr/local/bin/Kaptain
+     start "Password encrypter" -> code @action("perl","-e",code)="Crypt";
+     code:framed -> "print crypt('" passw "','" sa q%')."\n"% ;
+     passw "Password" -> @string="notsimple";
+     sa "Random chars(2)" -> @string(2)="y4";
+
+   Notice that the `@action' has three parameters; the `perl' compiler
+is called without the shell, having two parameters: `-e' and the
+evaluated text of `code';
+
+
+File: kaptain.info,  Node: External Control,  Next: Errors,  Prev: Examples,  Up: Top
+
+5 External Control
+******************
+
+This chapter describes the communication with the dialog in Kaptain.
+
+   The most interesting new feature in Kaptain 0.7 is the possibility of
+modifying the data in the widgets while Kaptain is running. For this,
+Kaptain needs a communication channel, which can be some network
+communicaton, redirection to an other program (using pipes) or the
+standard input and output.
+
+   On a communication channel Kaptain can recieve messages. There are
+two kinds of  messages:
+
+  1. Setting message: This can be sent to rules that contain exactly
+     one special symbol on the right side. A message consists of two
+     parts: first comes a nonterminal name, which specifies the target
+     of the message. This should be followed by a the real message
+     (till the end of that line), which can be in fact anything that
+     can be written after the special symbol you are refferring to by
+     the rule.  For example, having a rule like
+          number -> @string
+     then you can send a message like
+          number="Hello"
+     and the string input field will be set to the given value.
+
+     Thus the general form of a _setting message_ is:
+          nonterminal(par1,par2,...)=initvalue
+          nonterminal=initvalue
+     The later one is the simplified form, i.e., when no parameters are
+     given. This was the case in the example above.
+
+     For a detailed overview of the possible parameters and initial
+     values for a given type of special symbol, *Note Reference of
+     Special Symbols::.
+
+  2. Asking message: If a nonterminal is followed by a question mark in
+     a message sent to Kaptain on a communication chanel, Kaptain sends
+     back the generated text by the given nonterminal in the following
+     form:
+          start?                                          <- to Kaptain
+          start!<...here comes the generated text...>     <- from kaptin
+     This way data can be retrieved at any time from the widgets.
+
+
+
+File: kaptain.info,  Node: Errors,  Next: Reference of Special Symbols,  Prev: External Control,  Up: Top
+
+6 Errors
+********
+
+Kaptain reads the given file and parses the grammar according the rules
+in *note Grammar Scripts::.
+
+   If Kaptain finds something that is not according the rules described
+in this manual, it either signals an error or just a warning.
+
+   For example, warnings are generated if string, regular expressions,
+or other language constructs are opened but not closed till the end of
+the line. This is often handy when typoes are made in the grammar
+script.
+
+   On the other hand, Kaptain might find syntax error, and it
+immediately stops. In this case, the name of the last rule that was read
+successfully is printed together with its line number. Thus one has to
+look at the errors after the last correct rule. The most usual mistake
+is that the closing semicolon is forgotten from the end of a rule.
+
+
+File: kaptain.info,  Node: Reference of Special Symbols,  Next: Reference of Modifiers,  Prev: Errors,  Up: Top
+
+7 Reference of Special Symbols
+******************************
+
+`@integer'
+     creates an integer input field with up and down arrows, which can
+     be used to increase or decrease the number in the field. Two
+     integer parameters are accepted, these are the minimum and maximum
+     values. Initial value can be an integer, too. For example,
+          @integer(-10,20)=4
+     will create an integer input which can store a number between -10
+     and 20, and is initially set to 4. The minimum and maximum value
+     default to 0 and 99, respectively, while the uninitialized field
+     is set to 0.
+
+     This object evaluates to the value of the input field.
+
+`@string'
+     makes a one-line input field. If an integer parameter is given, the
+     maximum length of the string is bounded by that number. For
+     example,
+          @string(20)="Hello"
+     creates an input field with `Hello' inside, allowing strings of at
+     most 20 characters.
+
+     This object evaluates to the value of the input field.
+
+`@float'
+     makes a line input field than can contain a real number. Initial
+     value should be given in quotes if it contains other characters
+     than numbers, for example `@float="1.13"'.
+
+     This object evaluates to the value of the input field.
+
+`@regexp'
+     Similar input field to `@string', but the regular expression
+     parameter is used to control the string that is entered. For
+     example, `@regexp(m/^[ab]*$/)' enables only characters `a' and `b'
+     to be entered. Initial string value is processed if it matches the
+     regular expression.
+
+`@password'
+     This is identical to `@string', the only difference is that the
+     characters are not shown; an asterix appears like in usual password
+     input fields.
+
+`@list'
+`@combo'
+`@combow'
+     These specials generate a list box, a combo box or a writable combo
+     box, respectively. Each given parameter is inserted into the box
+     if it is a number or a string. If a multi-line string occurs,
+     every line is inserted as a separate item. Thus
+     `@list("hello",`ls`,"bye")' creates a list box containing the
+     files from the current directory, and two more lines: `hello' and
+     `bye'.
+
+     If the given initial value is a number, it indicates which line
+     should initially be selected. In case of a string, the first
+     occurrence of that string is highlighted. Finally, if a regular
+     expression is given as an initial value, the first line matching
+     that regular expression will be selected.
+
+     If a _substitution expression_ comes in the parameter list, it is
+     applied to the following string parameters until a new substitution
+     parameter is reached. This is useful to make different text in the
+     dialog box than that appears in the generated text. For example, in
+     `@list(s/^.*://,"a:A","b:B","c:C")' only the text after the colon
+     is inserted into the list box, and the whole string is used when
+     the symbol is evaluated. Note that the initial value selection
+     described in the previous paragraph is made by comparison to the
+     original strings, not the modified ones that appear on the screen.
+
+     The `@list' and `@combo' objects evaluate to the line from which
+     the currently selected line was generated using substitutions.
+     The `@combow' evaluates the line in the combo widget.
+
+`@button'
+     Places a simple push button with label given as initial value. The
+     label can be an image, if a filename is given in braces, like
+     `@button="{ok.png}"'.  creates a push button using the given
+     initial value. If the value is in the form of `"{FILENAME}"', then
+     it is considered to be a pixmap file, otherwise the initial value
+     is used as a text label. For example `@button="OK"' creates a
+     simple push button with label `OK'.
+
+     One push button in a dialog can be the default button: This can be
+     achieved by putting a space to the beginning of its name. For
+     example, a default ok button is created for the following code:
+     `@button=" OK"'.
+
+`@close'
+     Creates a button, which closes the current dialog when pressed.
+
+`@action'
+     _Synchronous execution._ When this button is pressed, the given
+     command is executed. During the execution, the button is disabled.
+
+`@fork'
+     _Asynchronous execution._ When this button is pressed, the given
+     command is started in the background, without any effect to the
+     dialog.
+
+`@exec'
+     _Final execution._ When this button is pressed, the given command
+     is started and Kaptain quits immediately.
+
+`@execclose'
+     This is similar to `@exec', the only difference is that Kaptain
+     only closes the current dialog. In the topmost dialog, this has
+     the same effect as `@exec', since Kaptain quits when it closes the
+     topmost dialog.
+
+`@echo'
+     Creates a button, which causes the generated text to be printed to
+     the standard output.
+
+`@dump'
+     Creates a similar button to `@echo', but Kaptain quits after
+     printing the generated text to the standard output.
+
+`@execbuffer'
+     This button causes the synchronous execution of the given command,
+     when pressed. The standard output of the executed command is
+     captured and stored. Later, this symbol evaluates to the stored
+     text. This is the only button-like special that can evaluate to
+     nonempty text.
+
+`@preview'
+     Creates a push button, which shows up a new dialog when pressed.
+     The new dialog contains the code generated for a given
+     nonterminal.  The accepted parameters are the following: the
+     nonterminal,font descriptor(string), minimum width and height
+     (integers) and the closing button's text.
+          @preview(start,"Lucidatypewriter",300,200,"Close")
+
+`@infile'
+`@outfile'
+`@directory'
+     These special symbols generate a line input field together with a
+     push button. When the button is pressed, a file or directory
+     choosing dialog appears. The name of file selected by the user is
+     then inserted into the input field. `@infile' stands for a _file
+     open dialog_, while `@outfile' for _file saving dialog._ Using
+     `@directory', one can select an existing _directory._
+
+     The initial value given to these symbols is inserted to the input
+     field at startup. When the button is pressed, the dialog is
+     starting on the file/directory currently specified in the input
+     field, if exists.
+
+     The file-like specials (`@infile', `@outfile') accept one string
+     argument. It can be a _filter_ for the file selection dialog. An
+     example for a multiple filter is the following:
+     The separators between filter groups can be either double
+     semicolons or newline characters.
+
+     A complete example for `@infile':
+     If no filter is specified, all files can be selected. In case of no
+     initial value, the current directory is the starting point.
+
+     These items evaluate to the text in the input field.
+
+`@container'
+     Creates _two buttons_ and a _list box_. The first parameter should
+     be a nonterminal symbol, the following two strings are interpreted
+     as the labels for the buttons. When the first button is pressed,
+     the given nonterminal symbol is evaluated, and the generated text
+     is inserted as a line into the list box.  When the second button is
+     pressed, the current line is removed from the list box. Button
+     names default to `Add' and `Remove'.
+
+     This object is useful in cases when recursion is needed in the
+     grammar. (In Kaptain, recursion is forbidden.) For example, if one
+     or more file name is needed, one can write this:
+          filename -> @infile; box -> @container(filename);
+     The container evaluates to its contents, its lines are simply
+     concatenated.
+
+`@multcol'
+     Creates a multi-column table with the given data filled.  If the
+     first parameter is a regular expression (`m/.../'), all the
+     following string parameters are matched against this expression.
+     Each such string parameter stands for one line, which is separated
+     according to the regular expression.The subexpressions matched
+     form the columns of the given row. If there is no regular
+     expression, the rows are separated at the tab characters.
+
+     The forthcoming string parameters are the rows of the table,
+     except the first one, which is specially the header. Initial
+     value, if an integer is given determines the selected element in
+     the table.
+
+     The `@multicol' special symbol generates to the content of the
+     selected row.
+          @multicol("Header 1\tHeader 2","data\tdata\tdata","abc")=1;
+          @multicol(m/([^ ]+) ([^ ]+) ([^ ]+)/,"1 2 3","a b c",
+                    "xx yy zz")=0;
+
+`@fill'
+     Inserts some stretchable space into the dialog. No other
+     functionality, evaluates to empty string.
+
+`@text'
+     This special symbol creates slightly sunken box in the dialog with
+     the given text inside. The text to be displayed is the
+     concatenation of the initial value and all the string parameters.
+     Since it has no functions, it is only good for informing the user.
+
+     This object evaluates to the empty string.
+
+`@icon'
+     Displays an image in the dialog. The first parameter should be
+     string, which is the name of a graphic file. Several file formats
+     are recognized. From Qt's manual:
+
+          Qt currently supports the following image file formats: PNG,
+          BMP, XBM, XPM and PNM. It may also support JPEG, MNG and GIF,
+          if specially configured during compilation. The different PNM
+          formats are: PBM (P1 or P4), PGM (P2 or P5), PPM (P3 or P6).
+
+     Icons evaluate to empty string.
+
+`@edit'
+     This is a multi-line text editor field. Initial value is inserted,
+     it can be a multiline text, too.  The first parameter, if it is a
+     string, is treated as a font name, Kaptain tries to set the editor
+     font. The next two parameters of integer type can be specified to
+     set the minimum width and height for the editor field, in pixels.
+     For example, `@edit("lucidatypewriter",300,200)="Hello,\nEditor!"'
+     creates an editor field of 300x200 pixels, using a nice font.
+
+     If the given font name starts with a minus sign, it is treated as
+     an XLDF (X Logical Font Description). Note that Qt does not handle
+     wildcards in font descriptions, nor the aliases at this time. A
+     fully specified font looks like this:
+
+
+
+File: kaptain.info,  Node: Reference of Modifiers,  Next: Concept Index,  Prev: Reference of Special Symbols,  Up: Top
+
+Appendix A Reference of Modifiers
+*********************************
+
+Modifiers always begin with a colon and are related to the nonterminal
+after which they appear.  For example:
+
+     start :framed :horizontal -> a b c ;
+
+   means that a, b and c are placed horizontally one by one, and each
+is in a frame.
+
+   Modifiers usually have effect on the appearence of the dialog.
+
+`:framed'
+     Makes the child widgets to appear in a frame.
+
+`:tabbed'
+     Makes the child widgets to appear on different tabs.
+
+`:horizontal'
+     Makes the child widgets to appear horizontal one by one, instead
+     of the default vertical arrangement.
+
+`:reverse'
+     Makes the child widgets to appear in reverse order. That is down
+     to top if `:horizontal' is not present, otherwise right to left.
+
+`:noeval'
+     The nonterminal will evaluate to an empty string. It is useful
+     when you use a @string input field by a @container, and you want
+     to have only those items which were inserted into the container.
+
+`:double'
+     Place child elements in two rows or columns. It is useful when you
+     have many radio buttons.
+
+`:beside'
+     Place child elements immediately to the right of the label of this
+     rule (if it's a radio button or check box), not below as by
+     default.  Use it in the similar situations as this:
+          number :beside "Number" -> @integer | @ ;
+
+`:dialog'
+     Create a pushbutton, which if pressed, makes a subdialog to appear
+     with the right side of the rule.
+
+`:wizard'
+     Create a pushbutton, which stands for a subdialog, having all the
+     nonterminals from the right side as pages in a so called _Wizard_
+     dialog (with _Next_, _Back_, _Cancel_ and _Finish_ buttons). Must
+     be on a conjunctive rule.
+
+`:tree'
+     Places all children in a tree widget. If the children are also
+     marked with :tree, they will appear on the second level in the
+     tree. Look at the example grammar for indent. This is a very good
+     way to place a great amount of structured information in the
+     dialog. Checkboxes and radio buttons can appear in the tree, but
+     if other things are present, they will be placed under or beside
+     the QListView object. Use it with :beside if you want to create
+     things like KControlCenter.  If the label of the tree item is like
+     `{icons/my.gif}Text"', then the picture mentioned between the
+     braces will be placed beside the Text--this can be very attractive.
+
+`:detailed'
+     Together with `:tree', it makes a second column appear in the
+     TreeView where the tooltip information is placed.
+
+`:stack'
+     Creates a widget stack, which means all chind widgets of the
+     corresponding rule are located in the same area, and only one is
+     visible. To control which one is on the top of the stack (that is,
+     visible) external communication can be used. *Note External
+     Control::.
+
+
+
+File: kaptain.info,  Node: Concept Index,  Prev: Reference of Modifiers,  Up: Top
+
+Concept Index
+*************
+
+ [index ]
+* Menu:
+
+* action:                                Reference of Special Symbols.
+                                                              (line  97)
+* Asking message:                        External Control.    (line  39)
+* Backquotes:                            Quotations.          (line  46)
+* beside:                                Reference of Modifiers.
+                                                              (line  40)
+* button:                                Reference of Special Symbols.
+                                                              (line  80)
+* Client socket:                         Invoking Kaptain.    (line  41)
+* close:                                 Reference of Special Symbols.
+                                                              (line  94)
+* Comments:                              Grammar Scripts.     (line  14)
+* Communication channels:                External Control.    (line   6)
+* container:                             Reference of Special Symbols.
+                                                              (line 166)
+* Context-free grammar:                  The Concepts of Kaptain.
+                                                              (line  16)
+* detailed:                              Reference of Modifiers.
+                                                              (line  68)
+* dialog:                                Reference of Modifiers.
+                                                              (line  46)
+* Dialog box:                            The Concepts of Kaptain.
+                                                              (line  21)
+* double:                                Reference of Modifiers.
+                                                              (line  36)
+* Double quotes:                         Quotations.          (line  13)
+* dump:                                  Reference of Special Symbols.
+                                                              (line 120)
+* echo:                                  Reference of Special Symbols.
+                                                              (line 116)
+* edit:                                  Reference of Special Symbols.
+                                                              (line 226)
+* exec:                                  Reference of Special Symbols.
+                                                              (line 106)
+* execclose:                             Reference of Special Symbols.
+                                                              (line 110)
+* External control:                      External Control.    (line   6)
+* fill:                                  Reference of Special Symbols.
+                                                              (line 202)
+* float:                                 Reference of Special Symbols.
+                                                              (line  30)
+* fork:                                  Reference of Special Symbols.
+                                                              (line 101)
+* Formal languages:                      Grammars.            (line  60)
+* framed:                                Reference of Modifiers.
+                                                              (line  17)
+* Generating text:                       Grammars.            (line  31)
+* Grammar:                               The Concepts of Kaptain.
+                                                              (line  16)
+* Grammar script:                        The Concepts of Kaptain.
+                                                              (line  16)
+* Grammar scripts:                       Grammars.            (line   6)
+* Grammars:                              Grammars.            (line   6)
+* help:                                  Invoking Kaptain.    (line  27)
+* horizontal:                            Reference of Modifiers.
+                                                              (line  23)
+* icon:                                  Reference of Special Symbols.
+                                                              (line 214)
+* infile:                                Reference of Special Symbols.
+                                                              (line 139)
+* integer:                               Reference of Special Symbols.
+                                                              (line   7)
+* Language:                              Grammars.            (line  60)
+* list:                                  Reference of Special Symbols.
+                                                              (line  49)
+* Multiline quotes:                      Quotations.          (line  89)
+* No input:                              Invoking Kaptain.    (line  61)
+* No output:                             Invoking Kaptain.    (line  65)
+* noeval:                                Reference of Modifiers.
+                                                              (line  31)
+* Nonterminal symbol:                    Grammars.            (line  20)
+* password:                              Reference of Special Symbols.
+                                                              (line  44)
+* Perlish exection quotes:               Quotations.          (line  80)
+* Perlish single quotes:                 Quotations.          (line  66)
+* Pipe:                                  Invoking Kaptain.    (line  51)
+* Quotations:                            Quotations.          (line   6)
+* regexp:                                Reference of Special Symbols.
+                                                              (line  37)
+* Regular expression based substitution: Substitutions.       (line   6)
+* Regular expression's subexpression:    Regular expressions. (line  23)
+* Regular expressions:                   Regular expressions. (line   6)
+* reverse:                               Reference of Modifiers.
+                                                              (line  27)
+* Scripts:                               Grammars.            (line   6)
+* Sentence:                              Grammars.            (line  60)
+* Server socket:                         Invoking Kaptain.    (line  46)
+* Setting message:                       External Control.    (line  17)
+* Single quotes:                         Quotations.          (line  35)
+* Special symbol:                        Special symbols.     (line  16)
+* stack:                                 Reference of Modifiers.
+                                                              (line  72)
+* Standard input:                        Invoking Kaptain.    (line  56)
+* string:                                Reference of Special Symbols.
+                                                              (line  20)
+* Subexpression:                         Regular expressions. (line  23)
+* Substitution:                          Substitutions.       (line   6)
+* tabbed:                                Reference of Modifiers.
+                                                              (line  20)
+* Terminal symbols:                      Grammars.            (line  23)
+* Test mode:                             Invoking Kaptain.    (line  30)
+* text:                                  Reference of Special Symbols.
+                                                              (line 206)
+* Text generation:                       Grammars.            (line  31)
+* transliteration:                       Transliterations.    (line   6)
+* tree:                                  Reference of Modifiers.
+                                                              (line  56)
+* Version:                               Invoking Kaptain.    (line  24)
+* wizard:                                Reference of Modifiers.
+                                                              (line  50)
+
+
+
+Tag Table:
+Node: Top317
+Node: The Concepts of Kaptain640
+Node: Invoking Kaptain3354
+Node: Grammar Scripts5779
+Node: Grammars6554
+Node: Special symbols9343
+Node: Quotations11155
+Node: Regulas expressions and translations16029
+Node: Regular expressions16733
+Node: Substitutions18160
+Node: Transliterations19352
+Node: Using text manipulation in grammar rules19680
+Node: Examples20543
+Node: Sound recording20909
+Node: Creating archives21610
+Node: Calling perl23512
+Node: External Control24268
+Node: Errors26340
+Node: Reference of Special Symbols27266
+Node: Reference of Modifiers37849
+Node: Concept Index40860
+
+End Tag Table

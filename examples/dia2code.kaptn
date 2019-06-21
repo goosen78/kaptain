@@ -1,0 +1,31 @@
+#!/usr/bin/kaptain
+start "Dia2Code" -> dia2code buttons;
+dia2code :tabbed -> main about;
+
+main "Dia2Code" -> "dia2code" language outdir classlist mask noclobber " " diagramfile;
+
+language "Output Language" -> " -t " outlanguage;
+outlanguage :double :horizontal -> ada | c | ! cpp | java | python | sql ;
+c "C" -> "c";
+cpp "C++" -> "cpp";
+java "Java" -> "java";
+ada "Ada" -> "ada";
+python "Python" -> "python";
+sql "SQL" -> "sql";
+
+outdir "Output Dir" -> " -d " @directory=`pwd`;
+
+classlist "Class list (foo,bar,...)" -> @ | " -cl " @string;
+
+mask "Reverse class list" -> @ | " -v";
+
+noclobber "Don't overwrite existing files" -> @ | " -nc";
+yesclobber -> "";
+
+diagramfile "Diagram File" -> @infile("*.dia");
+
+buttons :horizontal -> @action(dia2code)="Go" @preview(dia2code)="Preview Command" @close="Quit" ; 
+
+about "About" -> @text("Kaptain grammar for Dia2Code\n\nVersion 1.0\n(c) 2001 Javier O'Hara\n<joh314@users.sourceforge.net>\n\nDia2Code homepage:\nhttp://dia2code.sourceforge.net");
+
+classlist="" "Generates code only for the classes specified\nin this comma-separated list";

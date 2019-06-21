@@ -1,0 +1,32 @@
+#!/usr/bin/kaptain
+
+start "Personal budget" -> data buttons;
+buttons:horizontal -> @exec("psql","-c",query)="OK" @close="Cancel";
+#buttons:horizontal -> @echo(query)="OK" @close="Cancel";
+
+query :framed "Data" -> 'INSERT INTO budget VALUES' data;
+data  -> "(" trans_date ",'" description "'," amount ",'" currency "','" destination "');";
+
+trans_date :framed -> trans_date0;
+trans_date0 :horizontal "Date"-> !today | specified_date;
+  today "Today" -> "date('now')";
+  specified_date :beside "Other"-> "'"
+    @regexp("^[0-9]+-[0-9]+-[0-9]+$")=x@date +%D | sed -e 's!\(..\)/\(..\)/\(..\)!20\3-\1-\2!'@
+    "'";
+  description  "Description" -> @string(40)="BB";
+amount :framed -> money;
+ money "Amount" -> sign quant;
+  sign :horizontal -> in | out;
+    in "Pay-in" -> "";
+    out "Withdraw" -> "-";
+  quant :horizontal -> quantity currencyX;
+    currencyX :noeval -> currency;
+    quantity "Quantity" -> @regexp("^[0-9]*$");
+
+currency "Currency" -> @combow('HUF','DEM','USD',"EUR");
+
+destination "Destination" -> @combow("BANK","Family","Mother","Father","Other");
+
+
+
+

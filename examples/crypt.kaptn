@@ -1,0 +1,6 @@
+#!/usr/bin/kaptain
+
+start "Password encrypter" -> code @action("perl","-e",code)="Crypt";
+code:framed -> "print crypt('" passw "','" sa q%')."\n"% ;
+passw "Password" -> @string="notsimple";
+sa "Random chars(2)" -> @string(2)="y4";

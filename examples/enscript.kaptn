@@ -1,0 +1,114 @@
+#!/usr/bin/kaptain
+# kaptain grammar for enscript
+# (c) 2000 Terek Zsolt
+
+start "Enscript" -> top bottom;
+  top :tabbed  -> body  header;
+  bottom :horizontal -> font_button ok_button cancel_button;
+
+### Body tab
+body "Body" -> up down ;
+  up :framed -> options;
+    options :horizontal "Options" -> left center right;
+  down :horizontal :framed ->files output;
+
+left   -> wordwrap landscape media pretty_print encoding;
+center -> border trunc_lines nup columns  high_bars linenum lines;
+right  -> indent pages;
+
+# Options - column 1
+wordwrap "Word wrap" "Wrap long lines from word boundaries" -> " --word-wrap"! | @;
+landscape "Landscape" -> " -r" | !@ ;
+border "Border around columns" -> " -j" | !@ ;
+trunc_lines "Truncate long lines" -> " -c" | !@ ;
+pretty_print "Pretty-print" -> !@ | " --pretty-print="
+  @combo( `enscript --help-pretty-print | sed -n -e /^Name:/s/Name:[[:space:]]*//p` );
+media "Specify output media" -> @ | !" -M"
+  @combo(x%enscript --list-media | sed -n -e 's/^\([A-Z][^[:space:]]*\).*$/\1/p' | sort %)=2;
+encoding "Encoding" -> !@ |" -X "
+  @combo("latin1","latin2","latin3","latin4","cyrillic","greek","ascii","ibmpc","mac","vms","hp8","koi8","ps");
+
+# Options - column 2
+nup :beside "N-up printing" -> " -U " @integer=1 | @! ;
+columns :beside "Number of columns" -> " --columns="  @integer=1 | @! ;
+high_bars :beside "Highlight bars" -> " -H"  @integer=2 | @! ;
+linenum :beside "Show line number starting at" -> " -C" @integer(-100,100)=1 | @! ;
+lines :beside "Number of lines per page" -> " -L " @integer=66 | @! ;
+
+# Options - column 3
+indent :beside "Indent size" -> " -i "  @regexp("^[0-9]*[cilp]?$")="8" | !@;
+pages  :framed -> pages_ ;
+pages_ "Pages to print" -> pages0 | pages1;
+pages_ ->  pages2 | pages3 | pages4;
+  pages0 "All"       -> @;
+  pages1:horizontal:beside "Begin-End" -> " -a " @integer=1 to @integer=10;
+    to "-" -> "-";
+  pages2:beside "Page"      -> " -a " @integer=1;
+  pages3 "Odd"       -> " -a odd";
+  pages4 "Even"      -> " -a even";
+
+# Files
+files "Files to print" -> ifile @container(ifile);
+  ifile :noeval -> " " @infile;
+
+# Output
+output "Output" -> stdout | ofile | printer;
+  stdout "Standart output" -> " -p -";
+  ofile "To file"          -> " -p " @outfile="out.ps" outops;
+    outops:horizontal -> lang color;
+    lang          -> " -W " @combo("PostScript","html","overstrike","rtf");
+    color "Color" -> " --color" | @ ;
+  printer "Printer"        -> " -P " @string="lp"; # how to get printer list? from /etc/printcap?
+
+### Header tab
+header:framed "Header" -> header_;
+header_ "Page header" -> header1 | header2 | header3 | userheader | !noheader ;
+  header1 "File name, current date and current page/all pages left justified"                -> q/ --header='$n %W Page $% of $='/;
+  header2 "File name left, current date centered and current page/all pages right justified" -> q/ --header='$n|%W|Page $% of $='/;
+  header3 "Current page number centered"                                                     -> q/ --header='|$%|'/;
+  userheader "User specified header" -> headersymbols containers real_header;
+    headersymbols :noeval :horizontal -> hdr_file | hdr_currdate | hdr_currpage | hdr_pagenum | hdr_any ;
+      hdr_file "File name"          -> '$n';
+      hdr_currdate "Current date"   -> '%W';
+      hdr_currpage "Current page"   -> '$%';
+      hdr_pagenum "Number of pages" -> '$=';
+      hdr_any :beside "Text"                -> @string;
+    containers :framed :noeval :horizontal -> hdr_left hdr_center hdr_right ;
+      hdr_left "Left"     -> @container(headersymbols);
+      hdr_center "Center" -> @container(headersymbols);
+      hdr_right "Right"   -> @container(headersymbols);
+    real_header -> " --header='" hdr_left "|" hdr_center "|" hdr_right "'";
+  noheader "No header" -> " --no-header";
+
+### Font dialog
+fonts "Select fonts" -> fonts_ font_exit;
+  fonts_ :framed -> font_choice;
+    font_choice "Choose font" -> default | fixed | specfont ;
+      default "Courier 10pt" -> @;
+      fixed "Times 12pt"      -> " -f Times-Roman12";
+      specfont "User specified" -> " -f " fontname fontsize;
+        fontname "Font name" -> @list(`cat /usr/share/enscript/font.map | sed -n -e 's/[ ].*$//gp'`);
+        fontsize "Font size (pt)" -> @combow("8\n10\n12\n14\n16\n18\n24")=2;
+  font_exit -> @close="OK";
+
+### Button bar
+font_button -> @button(fonts) = "Fonts...";
+ok_button -> @action(enscript)="Enscript"; # see the definition of enscript below
+cancel_button -> @close="Cancel";
+
+# the command to be executed should contain data in the following order
+enscript -> "enscript" header fonts options output files ;
+
+
+#--------------------------------------------
+#- the detailed description of some elements-
+#--------------------------------------------
+indent= "" "Size of indentation" <<END
+c	centimeters
+i	inches
+l	characters (default)
+p	Postscript points
+END
+;
+
+stdout="" "Standard output for enscript" ;

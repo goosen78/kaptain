@@ -1,0 +1,93 @@
+#!/usr/bin/kaptain
+start :wizard "Procmail" ->  intro setup finish;
+intro "Hi,"-> intro1 intro2;
+intro1 :horizontal -> text1 introa;
+text1 -> @text("This is a graphical front-end for creating procmail\
+configuration files made using Kaptain, the Universal graphical front-end.");
+intro2 "" -> @;
+introa "" -> maildir lockfile @fill;
+ maildir "Mail Directory" -> "\nMAILDIR=" @directory="$HOME";
+ lockfile "Lock file" -> "\nLOCKFILE=" @string | @!;
+
+finish :horizontal "Finish" -> text3 other_settings;
+text3 -> @text("Now press the Preview button to see the settings you have made.\
+Don't forget to press Write button in order to save the setting in the given file.");
+
+other_settings -> filename @fill @preview(allfile)="Preview" @action(writetofile)="Write";
+writetofile-> "echo '" allfile "' > " filename ;
+filename -> @outfile="$HOME/.procmailrc";
+
+setup :horizontal "Settings" -> recipe container;
+recipe :framed -> flags regexp action;
+
+flags :horizontal "Recipe" -> these_flags | !more_flags ;
+  these_flags :beside -> ":0 " @string;
+  more_flags :beside -> ":0 " more_flags0;
+regexp :horizontal "Delivery condition" -> this_regexp | !more_regexp;
+  this_regexp :beside -> "* " @string "\n";
+  more_regexp :beside -> more_regexp0;
+action "Action" -> folder | forward | execute;
+  folder "Append to mailbox" -> @infile="inbox";
+  forward "Forward to" -> "! " @string;
+  execute "Feed to stdin of command" -> "| " @string;
+
+container :framed -> container0 ;
+container0  "Procmail rules" -> @container(procmailline);
+    procmailline -> "\n" flags "\n" regexp_choices action "\n";
+regexp_choices -> this_regexp | regexps;
+regexp_choices <- regexp;
+
+allfile -> "#This file was created by Kaptain" maildir lockfile "\n" container "\n#end\n" ;
+#buttons -> @echo(container)="OK";
+
+more_regexp0 :dialog "More..." -> more_top more_buttons;
+more_buttons -> @close="Ok";
+more_top :horizontal :framed  -> choice regexps ;
+  choice  "Select condition"-> exactregexp | fieldcont!;
+    exactregexp "Regular expression" -> @string;
+    fieldcont :beside :horizontal-> "^" which "[: ][. ]*" what;
+    which :beside "Field" ->  @combow("From","Subject","To","Reply-to");
+    what :beside "contains"  -> @string;
+#    subjcont "Subj field contains" -> "^Subject[: ][. ]*" @string;
+  regexps "Conditions so far"-> @container(regexpline);
+      regexpline -> "* " choice "\n";
+
+more_flags0 :dialog "Flags..." -> flags_top flags_buttons;
+flags_buttons -> @close="OK";
+flags_top :horizontal :framed  -> options;# extras;
+# extras "Extras" -> @;
+ options "Options"
+  -> header body condA conda condE conde feedh feedb;
+  header "Egrep the header" -> "H"! | @;
+  body "Egrep the body" -> "B" | !@;
+  case "Case sensitive" -> "D" | !@;
+  condA  -> "A" | !@;
+  conda  -> "a" | !@;
+  condE  -> "E" | !@;
+  conde  -> "e" | !@;
+  feedh  -> "h"! | @;
+  feedb  -> "b"! | @;
+
+
+condA = "If last matched" "Match if the last preceding condition matched" "This  recipe  will  not  be executed unless the conditions on the last preceding recipe (on the current\
+block-nesting level) without the `A' or `a' flag matched as well.  This allows  you  to  chain  actions \
+that depend on a common condition.";
+
+conda = "If last was succesfull" "Match if last recipe action was succesfully completed"
+"Has  the  same  meaning  as  the `A' flag, with the additional condition that the immediately preceding \
+recipe must have been successfully completed before this recipe is executed.";
+
+condE = "If last didn't match" "Match if last recipe was not executed"
+"This recipe only executes if the immediately preceding recipe was  not  executed.   Execution  of  this \
+recipe  also  disables any immediately following recipes with the 'E' flag.  This allows you to specify \
+`else if' actions." ;
+
+conde = "If last failed" "Match if last recipe action failed"
+"This recipe only executes if the  immediately  preceding  recipe  failed  (i.e.  the  action  line  was \
+attempted, but resulted in an error)." ;
+
+feedh = "Feed the header" "Feed the header to action"
+"Feed the header to the pipe, file or mail destination.";
+
+feedb = "Feed the body" "Feed the body to action"
+"Feed the body to the pipe, file or mail destination.";

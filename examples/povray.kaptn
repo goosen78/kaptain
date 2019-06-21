@@ -1,0 +1,36 @@
+#!/usr/bin/kaptain
+#
+# Desc:   PoV-Ray frontend script
+# Cration Date: 2001.12.29.
+# Author: Fabian Zoltan 
+# e-mail: dzooli@freemail.hu
+#
+# Remarks: This is my first kaptain script
+#
+
+# Main dialog
+start -> "x-povray " ini input q_options options other_options resolution buttons ;
+
+ini "INI file:" -> @infile("*.ini");
+input "Filename:" -> " -i"@infile("*.pov");
+
+q_options:horizontal:framed -> quality buffsize use_aa;
+quality "Image quality:" -> " +Q" @integer(0,9) = 9;
+buffsize "Buffer size: " -> " +B" @integer(128,1024) = 128;
+use_aa "Antialiasing: " -> " +A" @float = "0.0";
+
+options:horizontal:framed -> pause alias disp;
+alias "No Adaptive AA" -> " +AM1" | " +AM2";
+pause "Pause when done" -> " +P" | " -P";
+disp  "Displaying" -> " +D" | " -D";
+
+other_options:horizontal:framed -> tabort verbose;
+tabort "Test abort" -> " +X" | "-X";
+verbose "Verbose output" -> " +V" | "-V";
+
+resolution:horizontal:framed  -> xresolution yresolution;
+xresolution "Horizontal image size:" -> " -w" @list("160","320","512","640","720","800","1024") = 2;
+yresolution "Vertical image size:" -> " -h"   @list("120","240","384","480","576","600","768") = 2; 
+
+buttons:horizontal -> @action(start)="Start" @close="Quit" @preview(start)="Preview";
+

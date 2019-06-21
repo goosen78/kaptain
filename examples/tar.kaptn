@@ -1,0 +1,45 @@
+#!/usr/bin/kaptain
+
+start "Tar" -> tar buttons;
+
+tar -> "tar " choice " " opt archive " " files;
+opt:framed :horizontal  -> extropt createopt ;
+
+createopt "Write options" -> dump remove verb comp;
+extropt "Read options" -> noerr keep same abs;
+
+dump "Dump files, not just symlinks" -> "--dereference " | @;
+
+noerr"Ignore failed read" -> "--ignore-failed-read " | @;
+
+keep "Keep existing files" -> "-k " | @;
+
+same "Extract all protection information" -> "-p " | @;
+
+abs "Absolute path names" -> "-P " | @;
+
+remove "Remove files after adding to archive" -> "--remove-files " | @;
+
+verb "Verbosely list files proceeded" -> "-v " | @;
+
+comp -> compress | @;
+compress "Compression" -> gzip | bzip;
+gzip "gzip" -> "-z ";
+bzip "bzip2" -> "--use-compress-program bzip2 ";
+
+choice:framed  -> work;
+work "Main choice" -> concat | ! create | diff | del | append | list | update | extract;
+concat "Append to archive" -> "A";
+create "Create archive" -> "c";
+diff "Find differences between archive and file system" -> "d";
+del "Delete from archive" -> "-delete";
+append "Append to the end of an archive" -> "r";
+list "List contents" -> "t";
+update "Update archive" -> "u";
+extract "Extract from archive" -> "x";
+
+archive "Archive name" -> @infile;
+
+files "Files to work with" -> @string ;
+
+buttons :horizontal -> @action(tar)="OK" @close="Cancel";
